@@ -1,88 +1,53 @@
 import logging
+import sys
 
 from utils.colors import Colors
+from utils.formater import format_number_value
 
+def log_values_with_color(logger, values: dict, use_color=False, level="info", log_name=None):
 
-def log_portfolio_value_change(logger, new_portfolio_value, portfolio_value, new_portfolio_value_prev, log_name,
-                               use_color=False, level="info", decimals=2):
-    # Helper function to format the value and optionally add color
-    def format_value(value):
-        if value == 0:
-            return f"{value:.{decimals}f}"
+    formatted_items = []
 
-        if use_color:
-            color = Colors.GREEN if value > 0 else Colors.RED if value < 0 else Colors.RESET
-            return f'{color}{value:.{decimals}f}{Colors.RESET}'
-        else:
-            return f"{value:.{decimals}f}"
+    for key, value in values.items():
+        try:
+            colored_value = format_number_value(value, use_color=use_color)
+        except Exception:
+            colored_value = str(value)
+        formatted_items.append(f"{key}: {colored_value}")
 
-    # Format each value with or without color
-    new_portfolio_value_str = format_value(new_portfolio_value)
-    portfolio_value_str = format_value(portfolio_value)
-    portfolio_change_str = format_value(portfolio_value - new_portfolio_value_prev)
-
-    # Construct the log message
-    log_message = f"Prev Portfolio Value: {new_portfolio_value_str} | New Portfolio Value: {portfolio_value_str} | Portfolio Change: {portfolio_change_str}"
-
-    # Get the logger method based on the level (e.g., info, debug)
+    message = " | ".join(formatted_items)
+    if log_name:
+        message = f"[{log_name}]: {message}"
     log_fn = getattr(logger, level, logger.info)
-
-    # Log the message
-    log_fn(f"[{log_name}]: {log_message}")
-
-def log_reward(logger, transaction_cost, risk_cost, total_reward, log_name, use_color=False, level="info",
-                         decimals=2):
-
-
-    def format_value(value):
-        """Format the value and apply color if needed."""
-        if value == 0:
-            return f"{value:.{decimals}f}"
-
-        # Apply color if use_color is True
-        if use_color:
-            color = Colors.GREEN if value > 0 else Colors.RED if value < 0 else Colors.RESET
-            return f'{color}{value:.{decimals}f}{Colors.RESET}'
-        else:
-            return f"{value:.{decimals}f}"
-
-    # Format each value with or without color
-    transaction_cost_str = format_value(transaction_cost)
-    risk_cost_str = format_value(risk_cost)
-    total_reward_str = format_value(total_reward)
-
-    # Create the log message
-    log_message = f"Transaction Cost: {transaction_cost_str} | Risk Cost: {risk_cost_str} | Total Reward: {total_reward_str}"
-
-    # Get the logger method based on the level
-    log_fn = getattr(logger, level, logger.info)
-
-    # Log the message
-    log_fn(f"[{log_name}]: {log_message}")
+    log_fn(message)
 
 def log_stock_value(logger, stocks, values, log_name, use_color=False, level="info", decimals=2):
-    """Log stock values with optional color coding (green for positive, red for negative)."""
+    """Log stock values with optional color coding (green for positive, red for negative, white for zero)."""
     parts = []
 
     for stock, value in zip(stocks, values):
+        # Decide the color based on the value
         if value == 0:
             continue
+            color = Colors.WHITE  # For zero value, we use white
+        elif value > 0:
+            color = Colors.GREEN  # Green for positive values
+        else:
+            color = Colors.RED  # Red for negative values
 
         # Decide whether to apply color based on `use_color`
         if use_color:
-            color = Colors.GREEN if value > 0 else Colors.RED if value < 0 else Colors.RESET
             parts.append(f'{color}{stock}: {value:.{decimals}f}{Colors.RESET}')
         else:
             # If no color is to be used, just append the stock and value without color
             parts.append(f'{stock}: {value:.{decimals}f}')
 
     formatted = ', '.join(parts)
-
-    # Get the logger method based on the level
     log_fn = getattr(logger, level, logger.info)
+    log_fn(f"[{log_name}]: {formatted}")
 
-    if formatted:
-        log_fn(f"[{log_name}]: {formatted}")
+    # if formatted:
+    #     log_fn(f"[{log_name}]: {formatted}")
 
 
 def log_numpy(logger, array, log_name: str, level="info", decimals=2):
@@ -123,10 +88,8 @@ class LoggerFactory:
         logger = logging.getLogger(name)
         logger.setLevel(logging.INFO)
 
-        # Console handler with colors
-        console_handler = logging.StreamHandler()
+        console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(ColoredFormatter())
-
         # File handler without colors (plain text)
         file_formatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

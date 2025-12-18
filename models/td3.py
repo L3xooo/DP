@@ -3,10 +3,10 @@ import torch
 from torch import optim
 import torch.nn as nn
 import numpy as np
-from models.actor import Actor, logits_to_probs
+from models.actor import Actor, add_logit_noise, logits_to_weights
 from models.critic import Critic
-from utils.logger import WithLogger, log_numpy, log_stock_value
-from ornstein_uhlenbeck import OrnsteinUhlenbeckActionNoise
+from utils.logger import WithLogger, log_values_with_color
+
 
 @WithLogger()
 class TD3:
@@ -14,10 +14,29 @@ class TD3:
     TD3 that expects a flattened state vector (1D per timestep) or batches thereof.
     Create with state_dim = env.observation_space.shape[0].
     """
-    def __init__(self, state_dim, action_dim, hidden_size=512, gamma=0.99, tau=0.005, lr=1e-3):
+    def __init__(
+        self, 
+        state_dim, 
+        action_dim, 
+        hidden_size=512,
+        gamma=0.99,
+        tau=0.005,
+        lr=1e-5,
+        noise_init=0.2,
+        noise_final=0.02,
+        noise_anneal_episodes=1000,
+        learning_starts=1000,
+    ):
+        self.learning_starts = learning_starts
         self.total_it = 0
         self.policy_noise = 0.2
         self.noise_clip = 0.5
+
+        # exploration scheduling
+        self._expl_noise_init = float(noise_init)
+        self._expl_noise_final = float(noise_final)
+        self._expl_noise_anneal = int(noise_anneal_episodes)
+        self.current_episode = 0
 
         # state_dim should be the flattened observation size (int)
         self.actor = Actor(input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size)
@@ -42,54 +61,55 @@ class TD3:
         self.gamma = gamma
         self.tau = tau
 
-    def select_action(self, state, noise_scale=0.2, temperature=1.0) -> np.ndarray:
+    def set_episode(self, episode_index: int):
+        """Anneal exploration noise lineárne od noise_init po noise_final."""
+        self.current_episode = int(episode_index)
+
+        if self._expl_noise_anneal <= 0:
+            self.policy_noise = self._expl_noise_final
+            return
+
+        progress = min(self.current_episode / float(self._expl_noise_anneal), 1.0)
+        self.policy_noise = float(
+            self._expl_noise_init + (self._expl_noise_final - self._expl_noise_init) * progress
+        )
+
+
+
+    @torch.no_grad()
+    def select_action(self, state, temperature=1.0, noise_std = 0.2, noise_clip = 0.5):
         # state can be 1D (single timestep) or already batched
         if not isinstance(state, (np.ndarray,)):
             state = np.array(state, dtype=np.float32)
         else:
             state = state.astype(np.float32)
 
-        # ensure batch dimension
         if state.ndim == 1:
             state = state.reshape(1, -1)
 
         state_t = torch.tensor(state, dtype=torch.float32).to(next(self.actor.parameters()).device)
-        with torch.no_grad():
-            # self.logger.info("[select_action] - State: %s", np.round(state_t.cpu().numpy(), 2))
-            logits = self.actor(state_t).squeeze(0)
-            # self.logger.info("[select_action] - Raw logits: %s", np.round(logits.cpu().numpy(), 2))
-            if noise_scale and noise_scale > 0:
-                noise = torch.randn_like(logits) * noise_scale
-                noise = noise.clamp(-3 * noise_scale, 3 * noise_scale)
-                # self.logger.info("[select_action] - Raw Noise: %s", np.round(noise.cpu().numpy(), 2))
-                logits = logits + noise
-            # self.logger.info("[select_action] - Noisy Logits: %s", np.round(logits.cpu().numpy(), 2))
-            logits = logits.clamp(-50.0, 50.0)
-            probs_t = logits_to_probs(logits.unsqueeze(0), temperature=temperature)
-            probs = np.round(probs_t.cpu().numpy().reshape(-1), 2)
+        logits = self.actor(state_t)
+        log_values_with_color(self.logger, {"Logits" : logits})
+        if noise_std is None:
+            noise_std = float(self.policy_noise)
+        if noise_clip is None:
+            noise_clip = float(self.noise_clip)
 
-        probs = np.clip(probs, 0.0, 1.0)
-        s = probs.sum()
-        if s <= 0 or not np.isfinite(s):
-            probs = np.ones_like(probs) / probs.size
-        else:
-            probs = probs / s
+        noisy_logits = add_logit_noise(logits, noise_std, noise_clip)
+        log_values_with_color(self.logger, {"Noisy Logits" : noisy_logits})
+        weights = logits_to_weights(noisy_logits, temperature)
+        action = weights.squeeze(0).cpu().numpy()
+        return action, noisy_logits
 
-        log_numpy(self.logger, probs, "Action")
-        return probs
-
-    # python
     def update(self, replay_buffer, batch_size, temperature=1.0):
-        if replay_buffer.size() < batch_size:
-            return
+        if replay_buffer.size() < self.learning_starts:
+            return None, None
 
+        # self.logger.info(f"Executing TD3 update step {replay_buffer.size()}")
         self.total_it += 1
-
         states, actions, rewards, dones, next_states = replay_buffer.sample_batch(batch_size)
-
         device = next(self.actor.parameters()).device
 
-        # to tensor on correct device
         states = torch.tensor(states, dtype=torch.float32, device=device)
         next_states = torch.tensor(next_states, dtype=torch.float32, device=device)
         actions = torch.tensor(actions, dtype=torch.float32, device=device)
@@ -104,20 +124,31 @@ class TD3:
 
         with torch.no_grad():
             next_logits = self.target_actor(next_states)
-            noise = (torch.randn_like(next_logits) * self.policy_noise).clamp(-self.noise_clip, self.noise_clip)
-            next_logits = (next_logits + noise).clamp(-50.0, 50.0)
-            next_actions = logits_to_probs(next_logits, temperature=temperature)
+            # self.logger.info(f"Next logits: {next_logits}")  # Logovanie hodnoty next_logits
+
+            next_logits_noisy = add_logit_noise(next_logits, self.policy_noise, self.noise_clip)
+            next_logits_noisy = next_logits_noisy.clamp(-50.0, 50.0)
+
+            next_actions = logits_to_weights(next_logits_noisy, temperature=temperature)
+            # self.logger.info(f"Next actions: {next_actions}")  # Logovanie next actions
 
             next_q1 = self.target_critic1(next_states, next_actions)
             next_q2 = self.target_critic2(next_states, next_actions)
             next_q = torch.min(next_q1, next_q2)
+            # self.logger.info(f"next Q1: {next_q1}")  # Logovanie target_q
+            # self.logger.info(f"next Q2: {next_q2}")  # Logovanie target_q
+
             target_q = rewards + (1.0 - dones) * self.gamma * next_q
+            # self.logger.info(f"Target Q: {target_q}")  # Logovanie target_q
 
         q1 = self.critic1(states, actions)
         q2 = self.critic2(states, actions)
 
         critic1_loss = nn.MSELoss()(q1, target_q)
         critic2_loss = nn.MSELoss()(q2, target_q)
+
+        # self.logger.info(f"Critic1 Loss: {critic1_loss.item()}")  # Logovanie straty kritika 1
+        # self.logger.info(f"Critic2 Loss: {critic2_loss.item()}")  # Logovanie straty kritika 2
 
         self.critic1_optimizer.zero_grad()
         critic1_loss.backward()
@@ -129,8 +160,13 @@ class TD3:
 
         if self.total_it % 2 == 0:
             actor_logits = self.actor(states).clamp(-50.0, 50.0)
-            actor_actions = logits_to_probs(actor_logits, temperature=temperature)
+            # self.logger.info(f"Actor Logits: {actor_logits}")
+
+            actor_actions = logits_to_weights(actor_logits, temperature=temperature)
+            # self.logger.info(f"Actor Actions: {actor_actions}")  # Logovanie akcií herca
+
             actor_loss = -self.critic1(states, actor_actions).mean()
+            # self.logger.info(f"Actor Loss: {actor_loss.item()}")  # Logovanie straty herca
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
@@ -140,6 +176,23 @@ class TD3:
             self._update_target_network(self.target_critic1, self.critic1)
             self._update_target_network(self.target_critic2, self.critic2)
 
+        return critic1_loss.item(), critic2_loss.item()
+
     def _update_target_network(self, target_network, network):
         for target_param, param in zip(target_network.parameters(), network.parameters()):
             target_param.data.copy_(self.tau * param.data + (1.0 - self.tau) * target_param.data)
+
+    def save_model(self, filename='td3_model.pth'):
+        torch.save({
+            'actor_state_dict': self.actor.state_dict(),
+            'critic1_state_dict': self.critic1.state_dict(),
+            'critic2_state_dict': self.critic2.state_dict(),
+        }, filename)
+        self.logger.info(f'Model saved to {filename}')
+
+    def load_model(self, filename='td3_model.pth'):
+        checkpoint = torch.load(filename)
+        self.actor.load_state_dict(checkpoint['actor_state_dict'])
+        self.critic1.load_state_dict(checkpoint['critic1_state_dict'])
+        self.critic2.load_state_dict(checkpoint['critic2_state_dict'])
+        print(f'Model loaded from {filename}')

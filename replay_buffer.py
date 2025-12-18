@@ -5,6 +5,10 @@ from collections import deque
 import random
 import numpy as np
 
+from utils.logger import WithLogger, log_values_with_color
+
+
+@WithLogger()
 class ReplayBuffer(object):
     """
     A ReplayBuffer is a data structure used in reinforcement learning to store
@@ -34,6 +38,7 @@ class ReplayBuffer(object):
         random.seed(random_seed)
 
     def add(self, s, a, r, t, s2):
+
         """
         Adds a new experience (state, action, reward, done, next_state) to the buffer.
         If the buffer is full, the oldest experience is removed to make space for the new one.
@@ -45,7 +50,21 @@ class ReplayBuffer(object):
             t (bool): Whether the episode has ended (True if done, False otherwise).
             s2 (np.array): The next state observed after taking action `a`.
         """
+        formatted_state = [round(value, 2) for value in s]
+        formatted_new_state = [round(value, 2) for value in s2]
+
+        # Uloženie do dočasných premenných
+        formatted_state_str = ', '.join(map(str, formatted_state))
+        formatted_new_state_str = ', '.join(map(str, formatted_new_state))
+
+        # Logovanie sformátovaných hodnôt
+        # log_values_with_color(self.logger, {"State": formatted_state_str})
+        # log_values_with_color(self.logger, {"New_state": formatted_new_state_str})
+        # log_values_with_color(self.logger, {"Action": a})
+        #
+        # self.logger.info("Adding new reward to replay buffer: %.3f", r)
         experience = (s, a, r, t, s2)
+        # self.logger.info(f"Adding experience to buffer: {experience}")
         if self.count < self.buffer_size:
             self.buffer.append(experience)
             self.count += 1

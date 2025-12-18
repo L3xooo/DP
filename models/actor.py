@@ -4,13 +4,21 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-def logits_to_probs(scores: Tensor, temperature: float = 1.0) -> Tensor:
-    eps = 1e-9
+from utils.logger import LoggerFactory
+
+logger = LoggerFactory.create_logger(__name__)
+
+def add_logit_noise(logits: torch.Tensor, noise_std: float, noise_clip: float) -> torch.Tensor:
+    if noise_std and noise_std > 0:
+        noise = torch.randn_like(logits) * noise_std
+        noise = noise.clamp(-noise_clip, noise_clip)
+        logger.info(f"Adding noise: {noise}")
+        return logits + noise
+    return logits
+
+def logits_to_weights(logits: torch.Tensor, temperature: float = 1.0) -> torch.Tensor:
     t = max(1e-6, float(temperature))
-    scaled = scores / t
-    scaled = torch.clamp(scaled, min=eps)
-    probs = scaled / (scaled.sum(dim=-1, keepdim=True) + eps)
-    return probs
+    return torch.softmax(logits / t, dim=-1) 
 
 class Actor(nn.Module):
     """
@@ -25,15 +33,14 @@ class Actor(nn.Module):
         self.fc1 = nn.Linear(input_dim, hidden_size)
         self.fc2 = nn.Linear(hidden_size, hidden_size)
         self.out = nn.Linear(hidden_size, action_dim)
-        self.softplus = nn.Softplus()
 
     def forward(self, state: Tensor) -> Tensor:
-        # Accept state shaped (batch, ...) and flatten from dim=1 onward
         if state.dim() > 2:
             x = state.view(state.size(0), -1)
         else:
             x = state
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        logits = self.softplus(self.out(x)) + 1e-9
-        return logits
+        logits = self.out(x)
+        # return logits
+        return torch.sigmoid(self.out(x))
