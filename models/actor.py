@@ -41,6 +41,4 @@ class Actor(nn.Module):
             x = state
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        logits = self.out(x)
-        # return logits
         return torch.sigmoid(self.out(x))

@@ -1,17 +1,20 @@
 from models.td3 import TD3
 from environment.portfolio import PortfolioEnv
+from utils.graph_utils import plot_episode_weights
 from utils.logger import LoggerFactory, log_stock_value, log_values_with_color
 from data.data_processor import DataProcessor
 import matplotlib.pyplot as plt
-import numpy as np
+from tqdm import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
+import torch
 
 logger = LoggerFactory.create_logger(__name__)
 
-NUMBER_OF_EPISODES = 1000
-LEARNING_START_EPISODE = 100
+NUMBER_OF_EPISODES = 500
+LEARNING_START_EPISODE = 1
 
 tickers = [
-    # "AAPL",  # Apple
+    "AAPL",  # Apple
     "MSFT",  # Microsoft
     "AMZN",  # Amazon
     "GOOGL", # Alphabet (Google)
@@ -54,8 +57,8 @@ if __name__ == "__main__":
     dp = DataProcessor(data_dir="../indicators")
     df = dp.load_panel(
         tickers=tickers,
-        start="2018-01-01",
-        end="2019-01-01",
+        start="2017-01-01",
+        end="2020-01-01",
         # filter_cols=None  # netreba písať, default je None → načíta všetko z CSV
     )
     filter_out = [
@@ -88,55 +91,68 @@ if __name__ == "__main__":
     log_values_with_color(logger, {"Actor" : count_params(td3_agent.actor), "Critic1":
         count_params(td3_agent.critic1), "Critic2": count_params(td3_agent.critic2)}, use_color=False, level="info",)
 
+    # with logging_redirect_tqdm():
+    #     for episode in tqdm(range(NUMBER_OF_EPISODES), desc="Training episodes"):
     for episode in range(NUMBER_OF_EPISODES):
-        logger.info(f"-------------------- Starting Episode {episode} -------------------")
-        episode_reward = 0.0
-        state = env.reset(options={"episode_number": episode})
-        done = False
+            c = 0
+            logger.info(f"-------------------- Starting Episode {episode} -------------------")
+            episode_reward = 0.0
+            state = env.reset(options={"episode_number": episode})
+            done = False
 
-        prev_state = None
-        prev_action = None
+            prev_state = None
+            prev_action = None
+            episode_weights = []
+            # step_bar = tqdm(desc=f"Episode {episode} steps", leave=False)
+            while True:
+                c += 1
+                # step_bar.update(1)
+                if done:
+                    logger.info(f"Episode {episode} finished, total reward {episode_reward:.2f}")
+                    all_rewards.append(episode_reward)
+                    all_portfolio_values.append(env.new_portfolio_value)
+                    # print(episode_reward)
+                    all_weights.append(env.new_shares_weights)
+                    plot_episode_weights(episode_weights, tickers, episode)
 
-        while True:
-            if done:
-                logger.info(f"Episode {episode} finished, total reward {episode_reward:.2f}")
-                all_rewards.append(episode_reward)
-                all_portfolio_values.append(env.new_portfolio_value)
-                # print(episode_reward)
-                all_weights.append(env.new_shares_weights)
+                    break
+                logger.info("-------------------- New Iteration Step -------------------")
+                # get current prices via env helper (close is feature index 0)
 
-                break
-            logger.info("-------------------- New Iteration Step -------------------")
-            # get current prices via env helper (close is feature index 0)
+                # log_stock_value(logger, tickers, env.get_prices_previous(), "P Prices")
+                # log_stock_value(logger, tickers, env.get_prices_current(), "C Prices")
+                # log_stock_value(logger, tickers, env.get_prices_current() - env.get_prices_previous(), "D Prices", use_color=True)
 
-            # log_stock_value(logger, tickers, env.get_prices_previous(), "P Prices")
-            # log_stock_value(logger, tickers, env.get_prices_current(), "C Prices")
-            # log_stock_value(logger, tickers, env.get_prices_current() - env.get_prices_previous(), "D Prices", use_color=True)
+                td3_agent.set_episode(episode)
+                action, noisy_logits = td3_agent.select_action(state, 1, None, None)
 
-            td3_agent.set_episode(episode)
-            action, noisy_logits = td3_agent.select_action(state, 1, None, None)
+                new_state, reward_val, done, trunc, info = env.step(action)
+                if prev_state is not None:
+                    env.replay_buffer.add(prev_state, prev_action, reward_val, done, state)
 
-            new_state, reward_val, done, trunc, info = env.step(action)
-            if prev_state is not None:
-                env.replay_buffer.add(prev_state, prev_action, reward_val, done, state)
+                prev_state = state
+                prev_action = action
+                state = new_state
 
-            prev_state = state
-            prev_action = action
-            state = new_state
+                c1, c2 = td3_agent.update(env.replay_buffer, batch_size=128)
+                if c1 is not None and c2 is not None:
+                    all_critic_values["c1"].append(c1)
+                    all_critic_values["c2"].append(c2)
+                    # logger.info(f"Critic1 Value: {c1.item():.4f}, Critic2 Value: {c2.item():.4f}")
 
-            # c1, c2 = td3_agent.update(env.replay_buffer, batch_size=32)
-            # if c1 is not None and c2 is not None:
-            #     all_critic_values["c1"].append(c1)
-            #     all_critic_values["c2"].append(c2)
-                # logger.info(f"Critic1 Value: {c1.item():.4f}, Critic2 Value: {c2.item():.4f}")
-
-            episode_reward += float(reward_val)
+                episode_reward += float(reward_val)
+                if c % 3 == 0:
+                    episode_weights.append(env.new_shares_weights)
+                # print(episode_weights)
+            # step_bar.close()
 
         # env.print_stats()
     #
     # logger.info(env.replay_buffer.size())
     # print(all_rewards)
     # print(env.new_portfolio_weights_history)
+
+    td3_agent.save_model("td3_v2")
 
     plt.figure(figsize=(10, 5))
 

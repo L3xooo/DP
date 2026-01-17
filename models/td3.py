@@ -26,6 +26,7 @@ class TD3:
         noise_final=0.02,
         noise_anneal_episodes=1000,
         learning_starts=1000,
+        device=None,  # Add device parameter
     ):
         self.learning_starts = learning_starts
         self.total_it = 0
@@ -77,7 +78,7 @@ class TD3:
 
 
     @torch.no_grad()
-    def select_action(self, state, temperature=1.0, noise_std = 0.2, noise_clip = 0.5):
+    def select_action(self, state, temperature=1.0, noise_std = 0.2, noise_clip = 0.5, use_noise: bool = True):
         # state can be 1D (single timestep) or already batched
         if not isinstance(state, (np.ndarray,)):
             state = np.array(state, dtype=np.float32)
@@ -90,13 +91,18 @@ class TD3:
         state_t = torch.tensor(state, dtype=torch.float32).to(next(self.actor.parameters()).device)
         logits = self.actor(state_t)
         log_values_with_color(self.logger, {"Logits" : logits})
-        if noise_std is None:
-            noise_std = float(self.policy_noise)
-        if noise_clip is None:
-            noise_clip = float(self.noise_clip)
 
-        noisy_logits = add_logit_noise(logits, noise_std, noise_clip)
+        if not use_noise:
+            noisy_logits = logits
+        else:
+            if noise_std is None:
+                noise_std = float(self.policy_noise)
+            if noise_clip is None:
+                noise_clip = float(self.noise_clip)
+
+            noisy_logits = add_logit_noise(logits, noise_std, noise_clip)
         log_values_with_color(self.logger, {"Noisy Logits" : noisy_logits})
+
         weights = logits_to_weights(noisy_logits, temperature)
         action = weights.squeeze(0).cpu().numpy()
         return action, noisy_logits
@@ -105,7 +111,7 @@ class TD3:
         if replay_buffer.size() < self.learning_starts:
             return None, None
 
-        # self.logger.info(f"Executing TD3 update step {replay_buffer.size()}")
+        self.logger.info(f"Executing TD3 update step {replay_buffer.size()}")
         self.total_it += 1
         states, actions, rewards, dones, next_states = replay_buffer.sample_batch(batch_size)
         device = next(self.actor.parameters()).device
@@ -188,11 +194,11 @@ class TD3:
             'critic1_state_dict': self.critic1.state_dict(),
             'critic2_state_dict': self.critic2.state_dict(),
         }, filename)
-        self.logger.info(f'Model saved to {filename}')
+        # self.logger.info(f'Model saved to {filename}')
 
     def load_model(self, filename='td3_model.pth'):
         checkpoint = torch.load(filename)
         self.actor.load_state_dict(checkpoint['actor_state_dict'])
         self.critic1.load_state_dict(checkpoint['critic1_state_dict'])
         self.critic2.load_state_dict(checkpoint['critic2_state_dict'])
-        print(f'Model loaded from {filename}')
+        # print(f'Model loaded from {filename}')
