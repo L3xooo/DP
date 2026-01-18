@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
+from utils.logger import WithLogger, log_stock_value, log_values_with_color
 
 from utils.logger import LoggerFactory
 
@@ -12,7 +13,14 @@ def add_logit_noise(logits: torch.Tensor, noise_std: float, noise_clip: float) -
     if noise_std and noise_std > 0:
         noise = torch.randn_like(logits) * noise_std
         noise = noise.clamp(-noise_clip, noise_clip)
-        logger.info(f"Adding noise: {noise}")
+
+        # should_log = (noise.ndim == 1) or (noise.ndim == 2 and noise.shape[0] == 1)
+        #
+        # if should_log:
+        #     log_values_with_color(logger, {"Logits": logits})
+        #     log_values_with_color(logger, {"Noise": noise})
+        #     log_values_with_color(logger, {"Noise+Logits": logits + noise})
+
         return logits + noise
     return logits
 

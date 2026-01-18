@@ -5,7 +5,7 @@ import torch.nn as nn
 import numpy as np
 from models.actor import Actor, add_logit_noise, logits_to_weights
 from models.critic import Critic
-from utils.logger import WithLogger, log_values_with_color
+from utils.logger import WithLogger, log_values_with_color, log_stock_value
 
 
 @WithLogger()
@@ -21,10 +21,10 @@ class TD3:
         hidden_size=512,
         gamma=0.99,
         tau=0.005,
-        lr=1e-5,
-        noise_init=0.2,
-        noise_final=0.02,
-        noise_anneal_episodes=1000,
+        lr=3e-4,
+        noise_init=0.3,
+        noise_final=0.05,
+        noise_anneal_episodes=500,
         learning_starts=1000,
         device=None,  # Add device parameter
     ):
@@ -88,9 +88,10 @@ class TD3:
         if state.ndim == 1:
             state = state.reshape(1, -1)
 
-        state_t = torch.tensor(state, dtype=torch.float32).to(next(self.actor.parameters()).device)
+        state_t = torch.tensor(state, dtype=torch.float32)
+
         logits = self.actor(state_t)
-        log_values_with_color(self.logger, {"Logits" : logits})
+        # log_values_with_color(self.logger, {"Logits" : logits})
 
         if not use_noise:
             noisy_logits = logits
@@ -101,13 +102,15 @@ class TD3:
                 noise_clip = float(self.noise_clip)
 
             noisy_logits = add_logit_noise(logits, noise_std, noise_clip)
-        log_values_with_color(self.logger, {"Noisy Logits" : noisy_logits})
 
         weights = logits_to_weights(noisy_logits, temperature)
+        # log_values_with_color(self.logger, {"Weights" : weights})
+
         action = weights.squeeze(0).cpu().numpy()
         return action, noisy_logits
 
     def update(self, replay_buffer, batch_size, temperature=1.0):
+
         if replay_buffer.size() < self.learning_starts:
             return None, None
 
@@ -133,7 +136,6 @@ class TD3:
             # self.logger.info(f"Next logits: {next_logits}")  # Logovanie hodnoty next_logits
 
             next_logits_noisy = add_logit_noise(next_logits, self.policy_noise, self.noise_clip)
-            next_logits_noisy = next_logits_noisy.clamp(-50.0, 50.0)
 
             next_actions = logits_to_weights(next_logits_noisy, temperature=temperature)
             # self.logger.info(f"Next actions: {next_actions}")  # Logovanie next actions
