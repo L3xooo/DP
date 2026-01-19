@@ -1,5 +1,5 @@
-from models.td3 import TD3
 from environment.portfolio import PortfolioEnv
+from models.td3 import TD3
 from utils.graph_utils import plot_episode_weights
 from utils.logger import LoggerFactory, log_stock_value, log_values_with_color
 from data.data_processor import DataProcessor
@@ -10,7 +10,7 @@ import torch
 
 logger = LoggerFactory.create_logger(__name__)
 
-NUMBER_OF_EPISODES = 500
+NUMBER_OF_EPISODES = 1
 LEARNING_START_EPISODE = 100
 
 tickers = [
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     df = dp.load_panel(
         tickers=tickers,
         start="2017-01-01",
-        end="2020-01-10",
+        end="2017-01-6",
     )
     filter_out = [
         'obv', 'volume_base', 'open', 'high', 'low', 'unix'
@@ -68,9 +68,7 @@ if __name__ == "__main__":
     data_3d_features, _, tickers, features = dp.to_3d(df_features)
     data_3d_prices, _, _, _ = dp.to_3d(df_prices)
 
-
-
-    env = PortfolioEnv(features=data_3d_features, prices=data_3d_prices, num_assets=len(tickers), tickers=tickers)
+    env = PortfolioEnv(features=data_3d_features, prices=data_3d_prices, tickers=tickers)
 
     action_dim = env.action_space.shape[0]
     state_dim = int(env.observation_space.shape[0])
@@ -118,9 +116,7 @@ if __name__ == "__main__":
 
                     break
                 logger.info("-------------------- New Iteration Step -------------------")
-
                 td3_agent.set_episode(episode)
-
                 action, noisy_logits = td3_agent.select_action(state, 0.75, None, None)
 
                 new_state, reward_val, done, trunc, info = env.step(action)
@@ -151,39 +147,10 @@ if __name__ == "__main__":
 
     td3_agent.save_model()
     #
-    # plt.figure(figsize=(10, 5))
-    #
-    # plt.plot(all_critic_values["c1"], label="Critic 1")
-    # plt.plot(all_critic_values["c2"], label="Critic 2")
-    #
+    # plt.plot(all_rewards)
     # plt.xlabel("Episode")
-    # plt.ylabel("Value")
-    # plt.title("Training Metrics Over Time")
-    # plt.legend()
-    # plt.grid(True)
-    # plt.show()
-    #
-    plt.plot(all_rewards)
-    plt.xlabel("Episode")
-    plt.axvline(x=LEARNING_START_EPISODE, color='r', linestyle='--',
-                label=f'Start Learning at Episode {LEARNING_START_EPISODE}')
-    plt.ylabel("Reward")
-    plt.title("Training Reward Over Time")
-    plt.show()
-    #
-    plt.plot(all_portfolio_values)
-    plt.xlabel("Episode")
-    plt.ylabel("Value")
-    plt.title("Portfolio Value Over Time")
-    plt.show()
-
-    #
-    # plt.figure(figsize=(10, 6))
-    # plt.stackplot(range(len(all_weights)), labels=[f' {i}' for i in tickers],
-    #               alpha=0.7)
-    # plt.title("Portfolio Weights Over Time")
-    # plt.xlabel("Time Step")
-    # plt.ylabel("Portfolio Weight")
-    # plt.legend(title="Actions", bbox_to_anchor=(1.05, 1), loc='upper left')
-    # plt.tight_layout()
+    # plt.axvline(x=LEARNING_START_EPISODE, color='r', linestyle='--',
+    #             label=f'Start Learning at Episode {LEARNING_START_EPISODE}')
+    # plt.ylabel("Reward")
+    # plt.title("Training Reward Over Time")
     # plt.show()

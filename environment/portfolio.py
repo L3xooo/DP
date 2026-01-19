@@ -11,28 +11,22 @@ DEFAULT_PORTFOLIO_VALUE = 10000.0
 
 @WithLogger()
 class PortfolioEnv(gym.Env):
-    """
-    Environment adapted to 3D features tensor: features shape = (T, N, F)
-    State returned = flattened features for current step (N*F) concatenated with portfolio_shares (N,)
-    Assumes feature index 0 == close price for each asset.
-    """
     def __init__(self,
                  features: np.ndarray,
-                 num_assets: int = None,
-                 max_shares=100,
                  prices: np.ndarray = None,
-                 tickers: list = None,
-                 ):
+                 tickers: list = None)\
+            :
         super(PortfolioEnv, self).__init__()
 
-        self.portfolio_shares_prices = None
         assert features.ndim == 3, "features must be a 3D numpy array (T, N, F)"
         self.features = features.astype(np.float32)
         self.current_step = None
+        # From the shape get number of steps, assets and feature dimension
         self.num_steps, self.num_assets, self.feature_dim = self.features.shape
 
         self.tickers = tickers
         self.seed_value = None
+        # Initialize the Replay Buffer
         self.replay_buffer = ReplayBuffer(100000)
 
         ## New values
@@ -43,11 +37,11 @@ class PortfolioEnv(gym.Env):
 
         self.new_features = features.astype(np.float32)
         self.new_prices = prices.astype(np.float32)
+        self.prices = prices.astype(np.float32)
 
 
         self.action_space = spaces.Box(low=0.0, high=1.0, shape=(self.num_assets + 1,), dtype=np.float32)
-        obs_dim = self.num_assets * self.feature_dim
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(obs_dim,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_assets * self.feature_dim,), dtype=np.float32)
 
     def _get_seed(self, seed=None):
         self.seed_value = seed
@@ -67,18 +61,22 @@ class PortfolioEnv(gym.Env):
         """
         transaction_cost = self._calculate_transaction_cost(shares_changes)
         risk_cost = self._calculate_risk_cost()
-        new_portfolio_value = self._calculate_portfolio_value_v2()
+        portfolio_value = self._calculate_portfolio_value()
+
+        next_portfolio_value = self._calculate_portfolio_value(self._get_prices(1))
+
+        log_values_with_color(self.logger, {"Transaction Cost": transaction_cost, "Risk Cost": risk_cost,
+                                            "Portfolio Value": portfolio_value, "Next Portfolio Value": next_portfolio_value})
 
 
-        # Výpočet novej hodnoty portfólia po odpočítaní nákladov
-        net_new_value = new_portfolio_value - risk_cost - transaction_cost
+        # net_new_value = new_portfolio_value - risk_cost - transaction_cost
 
-        if self.portfolio_value.prev is None or self.portfolio_value.prev == 0:
-            return float(net_new_value)
+        # if self.portfolio_value.prev is None or self.portfolio_value.prev == 0:
+        #     return float(net_new_value)
 
-        rel_return = ((net_new_value - self.portfolio_value.prev) / (
-                    self.portfolio_value.prev + 1e-12) * 100)
-        return float(rel_return)
+        # rel_return = ((net_new_value - self.portfolio_value.prev) / (
+        #             self.portfolio_value.prev + 1e-12) * 100)
+        return float(next_portfolio_value - portfolio_value)
 
     def _calculate_risk_cost(self):
         """
@@ -99,48 +97,32 @@ class PortfolioEnv(gym.Env):
         returns = (recent[1:] - recent[:-1]) / recent[:-1]
         return float(np.mean((returns - returns.mean()) ** 2))
 
-    def _calculate_portfolio_value_v2(self):
-        # if self.current_step == 0:
-        #     return float(DEFAULT_PORTFOLIO_VALUE)
-        # return float(self._get_prices_current().dot(self.portfolio_shares_hold.prev))
-        # return self.portfolio_ca
-        return self.portfolio_cash.curr + self._get_prices_current().dot(self.portfolio_shares_hold.prev)
+    def _calculate_portfolio_value(self, prices: np.ndarray = None) -> float:
+        log_values_with_color(self.logger, {"Prices" : prices}, log_name="Calc Portfolio Value", use_color=False)
+        if prices is None:
+
+            log_values_with_color(self.logger, {"Prices if None" : self._get_prices()})
+            log_values_with_color(self.logger, {"Shares" : self.shares.curr})
+            log_values_with_color(self.logger, {"A" : self.portfolio_cash.curr, "B": self._get_prices().dot(self.shares.curr), "SUM": self.assets_prices.curr.sum()})
+            return self.portfolio_cash.curr + self._get_prices().dot(self.shares.curr)
+        else:
+            return self.portfolio_cash.curr + prices.dot(self.shares.curr)
 
     def _calculate_transaction_cost(self, shares_changes: np.ndarray):
         """
         Calculate the transaction cost for the given shares changes.
         Formula: cᵗʳᵃⁿₜ = ξ × (pₜᵀ · |kₜ|)
         """
-        return self.transaction_coefficient * np.dot(self._get_prices_current(), np.abs(shares_changes))
-
-    def _calculate_portfolio_value(self, shares_changes: np.ndarray):
-        """
-        Calculate the portfolio value from previous value and shares changes.
-        Formula: Pₜ = Pₜ₋₁ + pₜᵀ kₜ
-        """
-        if self.current_step == 0:
-            return self._get_prices_current().dot(shares_changes)
-        else:
-            # self.logger.info(f"_calculate_portfolio_value {self.current_step} prev: {self.new_portfolio_value_prev} changes dot: {self._get_prices_current().dot(shares_changes)}")
-            return self.new_portfolio_value_prev + self._get_prices_current().dot(shares_changes)
+        return self.transaction_coefficient * np.dot(self._get_prices(), np.abs(shares_changes))
 
     def _get_features_current(self) -> np.ndarray:
         return self.new_features[self.current_step].flatten()
 
-    def get_prices_previous(self) -> np.ndarray:
-        return self._get_prices_previous()
-
-    def get_prices_current(self) -> np.ndarray:
-        return self._get_prices_current()
-
-    def _get_prices_current(self) -> np.ndarray:
-        return self.new_prices[self.current_step].flatten()
-
-    def _get_prices_previous(self) -> np.ndarray:
-        if self.current_step > 0:
-            return self.new_prices[self.current_step - 1].flatten()
-        else:
-            return self._get_prices_current()
+    def _get_prices(self, extra_step: int = 0) -> np.ndarray:
+        idx = self.current_step + extra_step
+        if idx < 0 or idx >= len(self.prices):
+            raise IndexError()
+        return self.prices[idx].flatten()
 
     def reset(self, seed=None, options=None):
         self._get_seed(seed)
@@ -149,70 +131,70 @@ class PortfolioEnv(gym.Env):
         self.new_portfolio_value_history = [DEFAULT_PORTFOLIO_VALUE]
         self.new_portfolio_weights_history = []
 
-        self.portfolio_value = PrevCurr(prev=float(DEFAULT_PORTFOLIO_VALUE), curr=float(DEFAULT_PORTFOLIO_VALUE))
-        self.portfolio_cash = PrevCurr(prev=float(DEFAULT_PORTFOLIO_VALUE), curr=float(DEFAULT_PORTFOLIO_VALUE))
-
+        self.portfolio_value = PrevCurr(prev=float(0), curr=float(DEFAULT_PORTFOLIO_VALUE))
+        self.portfolio_cash = PrevCurr(prev=float(0), curr=float(DEFAULT_PORTFOLIO_VALUE))
 
         zeros_assets = np.zeros(self.num_assets, dtype=np.float32)
-        self.portfolio_shares_hold = PrevCurr(prev=zeros_assets.copy(), curr=zeros_assets.copy())
-        self.portfolio_shares_changes = PrevCurr(prev=zeros_assets.copy(), curr=zeros_assets.copy())
-        self.portfolio_weights = PrevCurr(prev=zeros_assets.copy(), curr=zeros_assets.copy())
 
-        prices0 = self._get_prices_current().astype(np.float32)
-        self.portfolio_shares_prices = PrevCurr(prev=prices0.copy(), curr=prices0.copy())
+        # Shares & assets prices everything zero (1 step all in cash)
+        self.shares = PrevCurr(prev=zeros_assets.copy(), curr=zeros_assets.copy())
+        self.assets_prices = PrevCurr(prev=zeros_assets.copy(), curr=zeros_assets.copy())
 
+        # Weights in each asset & cash
+        w0 = np.zeros(self.num_assets, dtype=np.float32)
+        w0[0] = 1.0
+        self.weights = PrevCurr(prev=zeros_assets.copy(), curr=w0.copy())
 
         return self._get_state()
 
-    def _step(self, action):
-        log_values_with_color(self.logger, {"Cash" : self.portfolio_cash.curr, "Portfolio" : self.portfolio_value.curr})
-        log_values_with_color(self.logger, {"Action": action})
-        self.portfolio_cash.prev = self.portfolio_cash.curr
-        self.portfolio_value.prev = self.portfolio_value.curr
+    def _step_v2(self, action):
+        # Save the previous values, check if even needed
+        self.weights.set_prev_from_curr()
+        self.portfolio_value.set_prev_from_curr()
+        self.portfolio_cash.set_prev_from_curr()
+        self.shares.set_prev_from_curr()
+        self.assets_prices.set_prev_from_curr()
 
-        self.portfolio_shares_hold.update(self.portfolio_shares_hold.curr)
-        self.portfolio_shares_changes.update(self.portfolio_shares_changes.curr)
-        self.portfolio_weights.update(self.portfolio_weights.curr)
-        self.portfolio_shares_prices.update(self.portfolio_shares_prices.curr)
+        # Calculate the current portfolio value with previous cash and shares held
+        self.portfolio_value.set_curr(self.portfolio_cash.prev + self._get_prices().dot(self.shares.prev))
+        log_values_with_color(self.logger, {"Portfolio Value": self.portfolio_value.curr})
 
-        self.portfolio_weights.set_curr(np.array(action, dtype=np.float32).flatten())
-        self.new_portfolio_weights_history.append(self.portfolio_weights.curr.copy())
+        # Do the changes in portfolio based on the new weights
+        self.weights.set_curr(action)
+        # log_values_with_color(self.logger, {"Weights": self.weights.curr})
+        self.tickers.insert(0, "Cash")
+        log_stock_value(self.logger, self.tickers, self.weights.curr, "Weights")
 
-        pv_for_alloc = self.portfolio_cash.prev + self._get_prices_current().dot(self.portfolio_shares_hold.prev)
-        # self.logger.info("Portfolio Value for Allocation: {:.2f}".format(pv_for_alloc))
+        self.portfolio_cash.set_curr(self.portfolio_value.curr * self.weights.curr[0])
+        log_values_with_color(self.logger, {"Portfolio Cash": self.portfolio_cash.curr})
 
-        new_cash = pv_for_alloc * self.portfolio_weights.curr[0]
-        self.portfolio_cash.curr = new_cash
-        # self.logger.info("New cash: {:.2f}".format(new_cash))
+        # Calculate the shares prices, weights * (portfolio value - cash)
+        log_values_with_color(self.logger, {"Invested in Asset": self.portfolio_value.curr - self.portfolio_cash.curr})
 
-        target_asset_values = self.portfolio_weights.curr[1:]  * pv_for_alloc
+        log_values_with_color(self.logger, {"W" : self.weights.curr[1:]})
 
-        # self.logger.info("Target asset values: {:.2f}".format(np.sum(target_asset_values)))
+        self.assets_prices.set_curr(self.weights.curr[1:] * self.portfolio_value.curr)
 
-        self.portfolio_shares_prices.set_curr(target_asset_values.copy())
+        self.tickers.pop(0)
+        log_stock_value(self.logger, self.tickers, self.assets_prices.curr, "Assets Prices")
+        # Calculate how many shares per asset with new prices
+        self.shares.set_curr(self.assets_prices.curr / self._get_prices())
+        log_stock_value(self.logger, self.tickers, self.shares.curr, "Shares")
 
-        shares_hold = target_asset_values / (self.get_prices_current())
+        log_values_with_color(self.logger, {"Portfolio Value": self._calculate_portfolio_value()})
 
-        # self.logger.info(f"Target asset values: {shares_hold}")
+        shares_changes = self.shares.curr - self.shares.prev
 
-        shares_changes = shares_hold - self.portfolio_shares_hold.prev
-
-        # log_values_with_color(self.logger, {"Changes": shares_changes}, True)
-
-        # 6) Update curr
-        portfolio_value = self.portfolio_cash.prev + self._get_prices_current().dot(self.portfolio_shares_hold.prev)
+        #### Calculate Reward with st at and st+1
 
 
-        self.portfolio_shares_hold.set_curr(shares_hold.astype(np.float32))
-        self.portfolio_shares_changes.set_curr(shares_changes.astype(np.float32))
-        self.portfolio_value.set_curr(float(portfolio_value))
-        self.new_portfolio_value_history.append(self.portfolio_value.curr)
+        reward = self._calculate_reward(shares_changes)
 
-        reward = self._calculate_reward(self.portfolio_shares_changes.curr)
-        log_values_with_color(self.logger, {"Reward": reward}, True)
-        self.current_step += 1
+        log_values_with_color(self.logger, {"Reward": reward})
+        self.current_step +=1
+
         return self._get_state(), float(reward), self.current_step >= self.num_steps - 1, False, {}
 
     def step(self, action):
         # self.logger.info(f"------------------------ Step {self.current_step} ------------------------")
-        return self._step(action)
+        return self._step_v2(action)

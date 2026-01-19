@@ -5,7 +5,7 @@ import torch.nn as nn
 import numpy as np
 from models.actor import Actor, add_logit_noise, logits_to_weights
 from models.critic import Critic
-from utils.logger import WithLogger, log_values_with_color, log_stock_value
+from utils.logger import WithLogger
 
 
 @WithLogger()
@@ -63,7 +63,6 @@ class TD3:
         self.tau = tau
 
     def set_episode(self, episode_index: int):
-        """Anneal exploration noise lineárne od noise_init po noise_final."""
         self.current_episode = int(episode_index)
 
         if self._expl_noise_anneal <= 0:
@@ -74,8 +73,6 @@ class TD3:
         self.policy_noise = float(
             self._expl_noise_init + (self._expl_noise_final - self._expl_noise_init) * progress
         )
-
-
 
     @torch.no_grad()
     def select_action(self, state, temperature=1.0, noise_std = 0.2, noise_clip = 0.5, use_noise: bool = True):
@@ -89,9 +86,7 @@ class TD3:
             state = state.reshape(1, -1)
 
         state_t = torch.tensor(state, dtype=torch.float32)
-
         logits = self.actor(state_t)
-        # log_values_with_color(self.logger, {"Logits" : logits})
 
         if not use_noise:
             noisy_logits = logits
@@ -104,8 +99,6 @@ class TD3:
             noisy_logits = add_logit_noise(logits, noise_std, noise_clip)
 
         weights = logits_to_weights(noisy_logits, temperature)
-        # log_values_with_color(self.logger, {"Weights" : weights})
-
         action = weights.squeeze(0).cpu().numpy()
         return action, noisy_logits
 

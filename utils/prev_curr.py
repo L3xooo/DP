@@ -18,6 +18,9 @@ class PrevCurr(Generic[T]):
         self.prev = value
         self.curr = value
 
+    def set_prev_from_curr(self) -> None:
+        self.prev = self.curr
+
     def update(self, new_curr: T) -> None:
         self.prev = self.curr
         self.curr = new_curr
