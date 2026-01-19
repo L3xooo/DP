@@ -2,3 +2,5 @@ all_data.csv
 app.log
 Untitled.pdf
 plots/
+
+**/__pycache__/
