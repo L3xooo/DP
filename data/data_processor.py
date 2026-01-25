@@ -12,10 +12,10 @@ class DataProcessor:
     """
 
     def __init__(
-        self,
-        data_dir: str,
-        date_col: str = "date",
-        file_pattern: str = "{ticker}/normalized.csv",
+            self,
+            data_dir: str,
+            date_col: str = "date",
+            file_pattern: str = "{ticker}/normalized.csv",
     ):
         self.data_dir = data_dir
         self.date_col = date_col
@@ -29,9 +29,9 @@ class DataProcessor:
     # ------------------------------------------------------------------
 
     def load_single_ticker(
-        self,
-        ticker: str,
-        filter_cols: Optional[List[str]] = None,
+            self,
+            ticker: str,
+            filter_cols: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """
         Načíta všetky stĺpce pre daný ticker (CSV), voliteľne ich prefiltroval.
@@ -60,12 +60,12 @@ class DataProcessor:
     # ------------------------------------------------------------------
 
     def load_panel(
-        self,
-        tickers: List[str],
-        filter_cols: Optional[List[str]] = None,
-        join: str = "inner",
-        start: Optional[Union[str, pd.Timestamp]] = None,
-        end: Optional[Union[str, pd.Timestamp]] = None,
+            self,
+            tickers: List[str],
+            filter_cols: Optional[List[str]] = None,
+            join: str = "inner",
+            start: Optional[Union[str, pd.Timestamp]] = None,
+            end: Optional[Union[str, pd.Timestamp]] = None,
     ) -> pd.DataFrame:
         """
         Načíta všetky tickery, všetky stĺpce (alebo vybrané), zarovná podľa dátumu
@@ -91,8 +91,8 @@ class DataProcessor:
     # ------------------------------------------------------------------
 
     def to_3d(
-        self,
-        panel_df: pd.DataFrame,
+            self,
+            panel_df: pd.DataFrame,
     ) -> Tuple[np.ndarray, List[pd.Timestamp], List[str], List[str]]:
         """
         Z MultiIndex DataFrame (ticker, feature) spraví 3D numpy array.
@@ -118,7 +118,7 @@ class DataProcessor:
 
         # naplníme data[:, i, j] pre každý ticker a feature
         for i, t in enumerate(tickers):
-            sub_df = panel_df[t]            # DataFrame s columns = features
+            sub_df = panel_df[t]  # DataFrame s columns = features
             # zabezpečíme rovnaké poradie features
             sub_df = sub_df[features]
             data[:, i, :] = sub_df.values

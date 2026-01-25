@@ -1,25 +1,63 @@
-import os
 import numpy as np
+import os
 import matplotlib.pyplot as plt
 
-def plot_episode_weights(all_weights, tickers, episode, save_dir="plots"):
-    """
-    Vykreslí a uloží stacked bar graf portfóliových váh pre jednu epizódu.
+def plot_line_chart(
+    data,
+    label,
+    title,
+    image_name,
+    save_dir=None,
+    xlabel="Episode",
+    ylabel="Value",
+    dpi=200,
+):
+    plt.figure(figsize=(10, 5))
+    plt.plot(data, label=label)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+    plt.legend()
+    plt.grid(True)
 
-    Parameters:
-    - all_weights: list of np.array, obsahuje váhy pre každý krok epizódy
-    - tickers: list of str, názvy aktív
-    - episode: int, číslo epizódy
-    - save_dir: str, priečinok na uloženie grafov
-    """
+    if save_dir:
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, image_name)
+        plt.savefig(save_path, dpi=dpi)
+
+    plt.show()
+    plt.close()
+
+
+def plot_episode_weights(
+    all_weights,
+    tickers,
+    episode,
+    save_dir="plots",
+    filename=None,
+    title=None,
+    dpi=200,
+):
+
+    print(all_weights)
     if len(all_weights) == 0:
-        return
+        return None
 
-    W = np.array(all_weights)   # (T, N)
+    if not os.path.isdir(save_dir):
+        raise FileNotFoundError(f"save_dir does not exist: {save_dir}")
+
+    if filename is None:
+        filename = f"episode_{episode}_weights.jpg"
+
+    if title is None:
+        title = f"Portfolio Weights Over Time - Episode {episode}"
+
+    save_path = os.path.join(save_dir, filename)
+
+    W = np.asarray(all_weights, dtype=float)
     T, N = W.shape
     x = np.arange(T)
 
-    # Normalizácia
     W = W / (W.sum(axis=1, keepdims=True) + 1e-12)
 
     plt.figure(figsize=(12, 6))
@@ -29,16 +67,14 @@ def plot_episode_weights(all_weights, tickers, episode, save_dir="plots"):
         plt.bar(x, W[:, i], bottom=bottom, label=tickers[i])
         bottom += W[:, i]
 
-    plt.title(f"Portfolio Weights Over Time - Episode {episode}")
+    plt.title(title)
     plt.xlabel("Time Step")
     plt.ylabel("Portfolio Weight")
     plt.ylim(0, 1)
     plt.legend(title="Assets", bbox_to_anchor=(1.05, 1), loc="upper left")
     plt.tight_layout()
-
-    os.makedirs(save_dir, exist_ok=True)
-    filepath = os.path.join(save_dir, f"episode_{episode}_weights.png")
-    plt.savefig(filepath)
-    # plt.show()
+    plt.show()
+    # plt.savefig(save_path, dpi=dpi, format="jpg")
     plt.close()
-    return filepath
+
+    return save_path

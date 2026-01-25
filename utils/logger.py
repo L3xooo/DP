@@ -2,7 +2,8 @@ import logging
 import sys
 
 from utils.colors import Colors
-from utils.formater import format_number_value
+from utils.formater import format_number_value, ColoredFormatter
+
 
 def log_values_with_color(logger, values: dict, use_color=False, level="info", log_name=None):
 
@@ -50,31 +51,6 @@ def log_stock_value(logger, stocks, values, log_name, use_color=False, level="in
     #     log_fn(f"[{log_name}]: {formatted}")
 
 
-def log_numpy(logger, array, log_name: str, level="info", decimals=2):
-    """Log numpy array with specified decimal precision in one line."""
-    formatted = '[' + ', '.join(f'{x:.{decimals}f}' for x in array) + ']'
-    log_fn = getattr(logger, level, logger.info)
-    log_fn(f"[{log_name}]: {formatted}")
-
-
-class ColoredFormatter(logging.Formatter):
-    """Custom formatter with colors based on log level."""
-
-    FORMATS = {
-        logging.DEBUG: Colors.CYAN,
-        logging.INFO: Colors.RESET,
-        logging.WARNING: Colors.YELLOW,
-        logging.ERROR: Colors.RED,
-        logging.CRITICAL: Colors.BOLD + Colors.RED,
-    }
-
-    def format(self, record):
-        log_color = self.FORMATS.get(record.levelno, Colors.RESET)
-        formatter = logging.Formatter(
-            f"{log_color}%(asctime)s - %(name)s - %(levelname)s - %(message)s{Colors.RESET}"
-        )
-        return formatter.format(record)
-
 class LoggerFactory:
     LOG_FILE = "app.log"
 
@@ -87,7 +63,7 @@ class LoggerFactory:
         LoggerFactory.clear_log()
         logger = logging.getLogger(name)
         logger.setLevel(logging.INFO)
-        # logger.disabled = True
+        logger.disabled = False
 
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(ColoredFormatter())

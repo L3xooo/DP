@@ -14,8 +14,7 @@ class PortfolioEnv(gym.Env):
     def __init__(self,
                  features: np.ndarray,
                  prices: np.ndarray = None,
-                 tickers: list = None)\
-            :
+                 tickers: list = None):
         super(PortfolioEnv, self).__init__()
 
         assert features.ndim == 3, "features must be a 3D numpy array (T, N, F)"
@@ -54,6 +53,12 @@ class PortfolioEnv(gym.Env):
         """
         return np.concatenate([self._get_features_current().flatten()], axis=0).astype(np.float32)
 
+    def _get_state_next(self):
+        """
+        Returns the next state: flattened features.
+        """
+        return np.concatenate([self._get_features_next().flatten()], axis=0).astype(np.float32)
+
     def _calculate_reward(self, shares_changes: np.ndarray):
         """
         Computes reward for step.
@@ -65,18 +70,15 @@ class PortfolioEnv(gym.Env):
 
         next_portfolio_value = self._calculate_portfolio_value(self._get_prices(1))
 
-        log_values_with_color(self.logger, {"Transaction Cost": transaction_cost, "Risk Cost": risk_cost,
-                                            "Portfolio Value": portfolio_value, "Next Portfolio Value": next_portfolio_value})
+        net_new_value = next_portfolio_value - risk_cost - transaction_cost
 
-
-        # net_new_value = new_portfolio_value - risk_cost - transaction_cost
-
-        # if self.portfolio_value.prev is None or self.portfolio_value.prev == 0:
-        #     return float(net_new_value)
-
-        # rel_return = ((net_new_value - self.portfolio_value.prev) / (
-        #             self.portfolio_value.prev + 1e-12) * 100)
-        return float(next_portfolio_value - portfolio_value)
+        rel_return = ((net_new_value - portfolio_value) / (portfolio_value + 1e-12))
+        # self.logger.info(f"Reward = {rel_return:.4f}")
+        # log_values_with_color(self.logger, {"Transaction Cost": transaction_cost, "Risk Cost": risk_cost,
+        #                                     "Portfolio Value": portfolio_value, "Next Portfolio Value": next_portfolio_value,
+        #                                     "Cash Return": float(next_portfolio_value - portfolio_value),
+        #                                                        }, True)
+        return float(rel_return)
 
     def _calculate_risk_cost(self):
         """
@@ -98,12 +100,7 @@ class PortfolioEnv(gym.Env):
         return float(np.mean((returns - returns.mean()) ** 2))
 
     def _calculate_portfolio_value(self, prices: np.ndarray = None) -> float:
-        log_values_with_color(self.logger, {"Prices" : prices}, log_name="Calc Portfolio Value", use_color=False)
         if prices is None:
-
-            log_values_with_color(self.logger, {"Prices if None" : self._get_prices()})
-            log_values_with_color(self.logger, {"Shares" : self.shares.curr})
-            log_values_with_color(self.logger, {"A" : self.portfolio_cash.curr, "B": self._get_prices().dot(self.shares.curr), "SUM": self.assets_prices.curr.sum()})
             return self.portfolio_cash.curr + self._get_prices().dot(self.shares.curr)
         else:
             return self.portfolio_cash.curr + prices.dot(self.shares.curr)
@@ -117,6 +114,9 @@ class PortfolioEnv(gym.Env):
 
     def _get_features_current(self) -> np.ndarray:
         return self.new_features[self.current_step].flatten()
+
+    def _get_features_next(self) -> np.ndarray:
+        return self.new_features[self.current_step + 1].flatten()
 
     def _get_prices(self, extra_step: int = 0) -> np.ndarray:
         idx = self.current_step + extra_step
@@ -141,7 +141,7 @@ class PortfolioEnv(gym.Env):
         self.assets_prices = PrevCurr(prev=zeros_assets.copy(), curr=zeros_assets.copy())
 
         # Weights in each asset & cash
-        w0 = np.zeros(self.num_assets, dtype=np.float32)
+        w0 = np.zeros(self.num_assets + 1, dtype=np.float32)
         w0[0] = 1.0
         self.weights = PrevCurr(prev=zeros_assets.copy(), curr=w0.copy())
 
@@ -155,45 +155,36 @@ class PortfolioEnv(gym.Env):
         self.shares.set_prev_from_curr()
         self.assets_prices.set_prev_from_curr()
 
+        log_stock_value(self.logger, self.tickers, self._get_prices(), "Asset Prices - Step Start")
         # Calculate the current portfolio value with previous cash and shares held
         self.portfolio_value.set_curr(self.portfolio_cash.prev + self._get_prices().dot(self.shares.prev))
-        log_values_with_color(self.logger, {"Portfolio Value": self.portfolio_value.curr})
+        # log_values_with_color(self.logger, {"Portfolio Value": self.portfolio_value.curr})
 
         # Do the changes in portfolio based on the new weights
         self.weights.set_curr(action)
-        # log_values_with_color(self.logger, {"Weights": self.weights.curr})
+        log_values_with_color(self.logger, {"Weights": self.weights.curr})
         self.tickers.insert(0, "Cash")
-        log_stock_value(self.logger, self.tickers, self.weights.curr, "Weights")
+        # log_stock_value(self.logger, self.tickers, self.weights.curr, "Weights")
 
         self.portfolio_cash.set_curr(self.portfolio_value.curr * self.weights.curr[0])
-        log_values_with_color(self.logger, {"Portfolio Cash": self.portfolio_cash.curr})
-
-        # Calculate the shares prices, weights * (portfolio value - cash)
-        log_values_with_color(self.logger, {"Invested in Asset": self.portfolio_value.curr - self.portfolio_cash.curr})
-
-        log_values_with_color(self.logger, {"W" : self.weights.curr[1:]})
+        # log_values_with_color(self.logger, {"Portfolio Cash": self.portfolio_cash.curr, "Invested in Asset": self.portfolio_value.curr - self.portfolio_cash.curr})
 
         self.assets_prices.set_curr(self.weights.curr[1:] * self.portfolio_value.curr)
 
         self.tickers.pop(0)
-        log_stock_value(self.logger, self.tickers, self.assets_prices.curr, "Assets Prices")
+        # log_stock_value(self.logger, self.tickers, self.assets_prices.curr, "Assets Prices")
         # Calculate how many shares per asset with new prices
         self.shares.set_curr(self.assets_prices.curr / self._get_prices())
-        log_stock_value(self.logger, self.tickers, self.shares.curr, "Shares")
+        # log_stock_value(self.logger, self.tickers, self.shares.curr, "Shares")
 
-        log_values_with_color(self.logger, {"Portfolio Value": self._calculate_portfolio_value()})
+        # log_values_with_color(self.logger, {"Portfolio Value": self._calculate_portfolio_value()})
 
         shares_changes = self.shares.curr - self.shares.prev
-
-        #### Calculate Reward with st at and st+1
-
-
         reward = self._calculate_reward(shares_changes)
 
-        log_values_with_color(self.logger, {"Reward": reward})
         self.current_step +=1
 
-        return self._get_state(), float(reward), self.current_step >= self.num_steps - 1, False, {}
+        return self._get_state_next(), float(reward), self.current_step + 1 >= self.num_steps - 1, False, {}
 
     def step(self, action):
         # self.logger.info(f"------------------------ Step {self.current_step} ------------------------")

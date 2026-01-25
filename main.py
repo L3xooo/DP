@@ -1,68 +1,28 @@
+from config.ticker_config import get_ticker_config
 from environment.portfolio import PortfolioEnv
 from models.td3 import TD3
-from utils.graph_utils import plot_episode_weights
-from utils.logger import LoggerFactory, log_stock_value, log_values_with_color
+from utils.file_utils import create_run_directories
+from utils.graph_utils import plot_episode_weights, plot_line_chart
+from utils.logger import LoggerFactory
 from data.data_processor import DataProcessor
-import matplotlib.pyplot as plt
-from tqdm import tqdm
-from tqdm.contrib.logging import logging_redirect_tqdm
-import torch
 
 logger = LoggerFactory.create_logger(__name__)
 
-NUMBER_OF_EPISODES = 1
+NUMBER_OF_EPISODES = 1000
 LEARNING_START_EPISODE = 100
 
-tickers = [
-    "AAPL",  # Apple
-    "MSFT",  # Microsoft
-    "AMZN",  # Amazon
-    "GOOGL", # Alphabet (Google)
-    "META",  # Meta Platforms
-    "TSLA",  # Tesla
-    "NVDA",  # Nvidia
-    # "JPM",   # JPMorgan Chase
-    # "JNJ",   # Johnson & Johnson
-    # "XOM"    # Exxon Mobil
-]
-
-# tickers = [
-#     # Technology
-#     "AAPL", "MSFT", "GOOGL", "META", "NVDA", "AMD", "INTC", "IBM",
-#
-#     # Consumer / Retail
-#     "AMZN", "HD", "MCD", "NKE", "SBUX", "COST",
-#
-#     # Financials
-#     "JPM", "BAC", "WFC", "GS", "MS",
-#
-#     # Healthcare
-#     "JNJ", "PFE", "MRK", "ABBV", "UNH",
-#
-#     # Energy
-#     "XOM", "CVX", "COP",
-#
-#     # Industrials
-#     "CAT", "BA", "GE",
-#
-#     # Communications
-#     "VZ", "T"
-# ]
+tickers = get_ticker_config("10_TICKERS").tickers
+cash_tickers = ["Cash"] + tickers.copy()
 
 def count_params(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 if __name__ == "__main__":
+    run_dir, model_dir, weights_dir, plots_dir = create_run_directories()
 
     dp = DataProcessor(data_dir="../indicators")
-    df = dp.load_panel(
-        tickers=tickers,
-        start="2017-01-01",
-        end="2017-01-6",
-    )
-    filter_out = [
-        'obv', 'volume_base', 'open', 'high', 'low', 'unix'
-    ]
+    df = dp.load_panel(tickers=tickers, start="2016-05-01", end="2019-01-18",)
+    filter_out = ['obv', 'volume_base', 'open', 'high', 'low', 'unix']
     df_features = df.drop(columns=filter_out, level=1)
     df_prices = df.loc[:, (slice(None), ['close'])]
     data_3d_features, _, tickers, features = dp.to_3d(df_features)
@@ -73,15 +33,11 @@ if __name__ == "__main__":
     action_dim = env.action_space.shape[0]
     state_dim = int(env.observation_space.shape[0])
 
-    logger.info(len(features))
-    logger.info(tickers)
-    logger.info(features)
-    logger.info(data_3d_features.shape)
-    logger.info(data_3d_prices.shape)
-    logger.info(action_dim)
-    logger.info(state_dim)
+    logger.info(f"state_dim: {state_dim}")
+    logger.info(f"action_dim: {action_dim}")
 
-    td3_agent = TD3(state_dim=state_dim, action_dim=action_dim, noise_anneal_episodes = NUMBER_OF_EPISODES, learning_starts=LEARNING_START_EPISODE)
+    td3_agent = TD3(state_dim=state_dim, action_dim=action_dim, noise_anneal_episodes = NUMBER_OF_EPISODES,
+                    learning_starts=LEARNING_START_EPISODE)
     all_rewards = []
     all_portfolio_values = []
     all_critic_values = {
@@ -89,9 +45,6 @@ if __name__ == "__main__":
         "c2": []
     }
     all_weights = []
-
-    # log_values_with_color(logger, {"Actor" : count_params(td3_agent.actor), "Critic1":
-    #     count_params(td3_agent.critic1), "Critic2": count_params(td3_agent.critic2)}, use_color=False, level="info",)
 
     for episode in range(NUMBER_OF_EPISODES):
             c = 0
@@ -104,53 +57,33 @@ if __name__ == "__main__":
             prev_action = None
             episode_weights = []
             while True:
-                c += 1
                 # step_bar.update(1)
                 if done:
-                    logger.info(f"Episode {episode} finished, total reward {episode_reward:.2f}")
+                    logger.info(f"Episode {episode} finished, total reward {episode_reward:.2f} portfolio value {env.portfolio_value.curr}")
                     all_rewards.append(episode_reward)
-                    all_portfolio_values.append(env.portfolio_value.curr)
-                    # print(episode_reward)
-                    # all_weights.append(env.new_shares_weights)
-                    # plot_episode_weights(episode_weights, tickers, episode)
-
+                    all_portfolio_values.append(float(env.portfolio_value.curr))
+                    plot_episode_weights(episode_weights, cash_tickers, episode, save_dir=weights_dir)
                     break
-                logger.info("-------------------- New Iteration Step -------------------")
+
+                # logger.info("-------------------- New Iteration Step -------------------")
                 td3_agent.set_episode(episode)
                 action, noisy_logits = td3_agent.select_action(state, 0.75, None, None)
 
                 new_state, reward_val, done, trunc, info = env.step(action)
-                if prev_state is not None:
-                    env.replay_buffer.add(prev_state, prev_action, reward_val, done, state)
-
-                prev_state = state
-                prev_action = action
+                env.replay_buffer.add(state, action, reward_val, done, new_state)
                 state = new_state
 
                 c1, c2 = td3_agent.update(env.replay_buffer, batch_size=128, temperature=0.75)
-                if c1 is not None and c2 is not None:
-                    all_critic_values["c1"].append(c1)
-                    all_critic_values["c2"].append(c2)
-                    # logger.info(f"Critic1 Value: {c1.item():.4f}, Critic2 Value: {c2.item():.4f}")
 
                 episode_reward += float(reward_val)
-                # if c % 3 == 0:
-                #     episode_weights.append(env.new_shares_weights)
-                # print(episode_weights)
-            # step_bar.close()
 
-        # env.print_stats()
-    #
-    # logger.info(env.replay_buffer.size())
-    # print(all_rewards)
-    # print(env.new_portfolio_weights_history)
+                if c % 3 == 0:
+                    episode_weights.append(env.weights.prev)
+                c += 1
 
-    td3_agent.save_model()
-    #
-    # plt.plot(all_rewards)
-    # plt.xlabel("Episode")
-    # plt.axvline(x=LEARNING_START_EPISODE, color='r', linestyle='--',
-    #             label=f'Start Learning at Episode {LEARNING_START_EPISODE}')
-    # plt.ylabel("Reward")
-    # plt.title("Training Reward Over Time")
-    # plt.show()
+    print(all_rewards)
+    print(all_portfolio_values)
+    td3_agent.save_model(model_dir)
+
+    plot_line_chart(all_rewards, "Reward", "Reward per Episode", image_name="rewards.png", save_dir=plots_dir)
+    plot_line_chart(all_portfolio_values, "Portfolio Value", "Portfolio Value per Episode", save_dir=plots_dir, image_name="portfolio_value.png")

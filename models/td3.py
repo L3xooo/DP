@@ -6,7 +6,7 @@ import numpy as np
 from models.actor import Actor, add_logit_noise, logits_to_weights
 from models.critic import Critic
 from utils.logger import WithLogger
-
+import os
 
 @WithLogger()
 class TD3:
@@ -26,30 +26,30 @@ class TD3:
         noise_final=0.05,
         noise_anneal_episodes=500,
         learning_starts=1000,
-        device=None,  # Add device parameter
+        device=None,
     ):
+        self.device = torch.device(
+            device if device is not None else ("cuda" if torch.cuda.is_available() else "cpu")
+        )
         self.learning_starts = learning_starts
         self.total_it = 0
         self.policy_noise = 0.2
         self.noise_clip = 0.5
 
-        # exploration scheduling
         self._expl_noise_init = float(noise_init)
         self._expl_noise_final = float(noise_final)
         self._expl_noise_anneal = int(noise_anneal_episodes)
         self.current_episode = 0
 
-        # state_dim should be the flattened observation size (int)
-        self.actor = Actor(input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size)
-        self.critic1 = Critic(state_dim, action_dim, hidden_size)
-        self.critic2 = Critic(state_dim, action_dim, hidden_size)
+        self.actor = Actor(input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size).to(self.device)
+        self.critic1 = Critic(state_dim, action_dim, hidden_size).to(self.device)
+        self.critic2 = Critic(state_dim, action_dim, hidden_size).to(self.device)
 
-        self.target_actor = Actor(input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size)
-        self.target_critic1 = Critic(state_dim, action_dim, hidden_size)
-        self.target_critic2 = Critic(state_dim, action_dim, hidden_size)
+        self.target_actor = Actor(input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size).to(self.device)
+        self.target_critic1 = Critic(state_dim, action_dim, hidden_size).to(self.device)
+        self.target_critic2 = Critic(state_dim, action_dim, hidden_size).to(self.device)
 
         self.mu = np.zeros(action_dim)
-        # self.noise = OrnsteinUhlenbeckActionNoise(mu=self.mu, sigma=0.2, theta=0.15)
 
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=lr)
         self.critic1_optimizer = optim.Adam(self.critic1.parameters(), lr=lr)
@@ -183,12 +183,13 @@ class TD3:
         for target_param, param in zip(target_network.parameters(), network.parameters()):
             target_param.data.copy_(self.tau * param.data + (1.0 - self.tau) * target_param.data)
 
-    def save_model(self, filename='td3_model.pth'):
+    def save_model(self, directory):
+        path = os.path.join(directory, "td3_model.pth")
         torch.save({
             'actor_state_dict': self.actor.state_dict(),
             'critic1_state_dict': self.critic1.state_dict(),
             'critic2_state_dict': self.critic2.state_dict(),
-        }, filename)
+        },path)
         # self.logger.info(f'Model saved to {filename}')
 
     def load_model(self, filename='td3_model.pth'):
