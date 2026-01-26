@@ -4,7 +4,7 @@ import numpy as np
 import random
 
 from replay_buffer import ReplayBuffer
-from utils.logger import WithLogger, log_stock_value, log_values_with_color
+from td3.utils.logger import WithLogger, log_values_with_color
 from utils.prev_curr import PrevCurr
 
 DEFAULT_PORTFOLIO_VALUE = 10000.0
@@ -155,30 +155,19 @@ class PortfolioEnv(gym.Env):
         self.shares.set_prev_from_curr()
         self.assets_prices.set_prev_from_curr()
 
-        log_stock_value(self.logger, self.tickers, self._get_prices(), "Asset Prices - Step Start")
         # Calculate the current portfolio value with previous cash and shares held
         self.portfolio_value.set_curr(self.portfolio_cash.prev + self._get_prices().dot(self.shares.prev))
         # log_values_with_color(self.logger, {"Portfolio Value": self.portfolio_value.curr})
 
         # Do the changes in portfolio based on the new weights
         self.weights.set_curr(action)
-        log_values_with_color(self.logger, {"Weights": self.weights.curr})
-        self.tickers.insert(0, "Cash")
-        # log_stock_value(self.logger, self.tickers, self.weights.curr, "Weights")
+        log_values_with_color(self.logger, {"Weights": self.weights.curr, "Portfolio Value": self.portfolio_value.curr})
 
         self.portfolio_cash.set_curr(self.portfolio_value.curr * self.weights.curr[0])
-        # log_values_with_color(self.logger, {"Portfolio Cash": self.portfolio_cash.curr, "Invested in Asset": self.portfolio_value.curr - self.portfolio_cash.curr})
-
         self.assets_prices.set_curr(self.weights.curr[1:] * self.portfolio_value.curr)
 
-        self.tickers.pop(0)
-        # log_stock_value(self.logger, self.tickers, self.assets_prices.curr, "Assets Prices")
         # Calculate how many shares per asset with new prices
         self.shares.set_curr(self.assets_prices.curr / self._get_prices())
-        # log_stock_value(self.logger, self.tickers, self.shares.curr, "Shares")
-
-        # log_values_with_color(self.logger, {"Portfolio Value": self._calculate_portfolio_value()})
-
         shares_changes = self.shares.curr - self.shares.prev
         reward = self._calculate_reward(shares_changes)
 
@@ -187,5 +176,4 @@ class PortfolioEnv(gym.Env):
         return self._get_state_next(), float(reward), self.current_step + 1 >= self.num_steps - 1, False, {}
 
     def step(self, action):
-        # self.logger.info(f"------------------------ Step {self.current_step} ------------------------")
         return self._step_v2(action)

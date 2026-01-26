@@ -1,8 +1,8 @@
 import logging
 import sys
 
-from utils.colors import Colors
-from utils.formater import format_number_value, ColoredFormatter
+from td3.utils.colors import Colors
+from td3.utils.formater import format_number_value, ColoredFormatter
 
 
 def log_values_with_color(logger, values: dict, use_color=False, level="info", log_name=None):

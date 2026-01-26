@@ -2,20 +2,13 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
-def plot_line_chart(
-    data,
-    label,
-    title,
-    image_name,
-    save_dir=None,
-    xlabel="Episode",
-    ylabel="Value",
-    dpi=200,
-):
+def plot_line_chart(data, label, title, image_name, save_dir=None,
+    x_label="Episode", y_label="Value", dpi=200):
+
     plt.figure(figsize=(10, 5))
     plt.plot(data, label=label)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
     plt.title(title)
     plt.legend()
     plt.grid(True)
@@ -28,7 +21,6 @@ def plot_line_chart(
     plt.show()
     plt.close()
 
-
 def plot_episode_weights(
     all_weights,
     tickers,
@@ -39,7 +31,7 @@ def plot_episode_weights(
     dpi=200,
 ):
 
-    print(all_weights)
+    # print(all_weights)
     if len(all_weights) == 0:
         return None
 
@@ -73,8 +65,7 @@ def plot_episode_weights(
     plt.ylim(0, 1)
     plt.legend(title="Assets", bbox_to_anchor=(1.05, 1), loc="upper left")
     plt.tight_layout()
-    plt.show()
-    # plt.savefig(save_path, dpi=dpi, format="jpg")
+    plt.savefig(save_path, dpi=dpi, format="jpg")
     plt.close()
 
     return save_path

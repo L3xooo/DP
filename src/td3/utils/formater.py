@@ -1,4 +1,4 @@
-from utils.colors import Colors
+from td3.utils.colors import Colors
 import logging
 
 def format_number_value(value, decimals=2, use_color=False):

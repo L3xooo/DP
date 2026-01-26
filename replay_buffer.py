@@ -5,7 +5,7 @@ from collections import deque
 import random
 import numpy as np
 
-from utils.logger import WithLogger, log_values_with_color
+from td3.utils.logger import WithLogger
 
 
 @WithLogger()

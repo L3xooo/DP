@@ -1,17 +1,17 @@
 from config.ticker_config import get_ticker_config
 from environment.portfolio import PortfolioEnv
 from models.td3 import TD3
-from utils.file_utils import create_run_directories
-from utils.graph_utils import plot_episode_weights, plot_line_chart
-from utils.logger import LoggerFactory
-from data.data_processor import DataProcessor
+from td3.data.data_processor import DataProcessor
+from td3.utils.file_utils import create_run_directories
+from td3.utils.graph_utils import plot_episode_weights, plot_line_chart
+from td3.utils.logger import LoggerFactory
 
 logger = LoggerFactory.create_logger(__name__)
 
-NUMBER_OF_EPISODES = 1000
+NUMBER_OF_EPISODES = 500
 LEARNING_START_EPISODE = 100
 
-tickers = get_ticker_config("10_TICKERS").tickers
+tickers = get_ticker_config("ANOTHER_10_TICKERS").tickers
 cash_tickers = ["Cash"] + tickers.copy()
 
 def count_params(model):
@@ -57,15 +57,12 @@ if __name__ == "__main__":
             prev_action = None
             episode_weights = []
             while True:
-                # step_bar.update(1)
                 if done:
                     logger.info(f"Episode {episode} finished, total reward {episode_reward:.2f} portfolio value {env.portfolio_value.curr}")
                     all_rewards.append(episode_reward)
                     all_portfolio_values.append(float(env.portfolio_value.curr))
                     plot_episode_weights(episode_weights, cash_tickers, episode, save_dir=weights_dir)
                     break
-
-                # logger.info("-------------------- New Iteration Step -------------------")
                 td3_agent.set_episode(episode)
                 action, noisy_logits = td3_agent.select_action(state, 0.75, None, None)
 
@@ -81,8 +78,6 @@ if __name__ == "__main__":
                     episode_weights.append(env.weights.prev)
                 c += 1
 
-    print(all_rewards)
-    print(all_portfolio_values)
     td3_agent.save_model(model_dir)
 
     plot_line_chart(all_rewards, "Reward", "Reward per Episode", image_name="rewards.png", save_dir=plots_dir)

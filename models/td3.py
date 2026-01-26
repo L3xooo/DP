@@ -5,7 +5,7 @@ import torch.nn as nn
 import numpy as np
 from models.actor import Actor, add_logit_noise, logits_to_weights
 from models.critic import Critic
-from utils.logger import WithLogger
+from td3.utils.logger import WithLogger
 import os
 
 @WithLogger()

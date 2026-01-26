@@ -2,9 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
+from sparsemax import Sparsemax
+from entmax import entmax15
 
-from utils.logger import LoggerFactory
+from td3.utils.logger import LoggerFactory
 
+sparsemax = Sparsemax(dim=-1)
 logger = LoggerFactory.create_logger(__name__)
 
 def add_logit_noise(logits: torch.Tensor, noise_std: float, noise_clip: float) -> torch.Tensor:
@@ -16,7 +19,9 @@ def add_logit_noise(logits: torch.Tensor, noise_std: float, noise_clip: float) -
 
 def logits_to_weights(logits: torch.Tensor, temperature: float = 1.0) -> torch.Tensor:
     t = max(1e-6, float(temperature))
-    return torch.softmax(logits / t, dim=-1)
+    # return torch.softmax(logits / t, dim=-1)
+    # return sparsemax(logits)
+    return entmax15(logits)
 
 class Actor(nn.Module):
     def __init__(self, input_dim: int, action_dim: int, hidden_size: int = 256):
@@ -33,8 +38,4 @@ class Actor(nn.Module):
             x = state
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-
-        # raw logits (unbounded output)
-        # return self.out(x)
-        # squashed to (0, 1)
         return torch.sigmoid(self.out(x))
