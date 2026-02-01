@@ -3,10 +3,12 @@ import torch
 from torch import optim
 import torch.nn as nn
 import numpy as np
-from models.actor import Actor, add_logit_noise, logits_to_weights
-from models.critic import Critic
-from td3.utils.logger import WithLogger
+from td3.models.actor import Actor, add_logit_noise, logits_to_weights
+from td3.models.critic import Critic
 import os
+
+from td3.utils.logger import WithLogger
+
 
 @WithLogger()
 class TD3:

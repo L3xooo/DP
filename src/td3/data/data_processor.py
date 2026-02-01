@@ -6,11 +6,6 @@ import numpy as np
 
 
 class DataProcessor:
-    """
-    Načíta dáta pre viaceré tickery, všetky stĺpce,
-    zarovná podľa dátumu a vie ich prehodiť na 3D tvar (time, ticker, feature).
-    """
-
     def __init__(
             self,
             data_dir: str,
