@@ -10,7 +10,7 @@ from td3.config.ticker_config import TickerConfig
 class AppConfig:
     number_of_episodes: int = 500
     batch_size: int = 64
-    learning_start_episode: int = 100
+    learning_start_episode: int | None = 100
     replay_buffer_size: int = 100_000
 
     ticker_config: TickerConfig = TickerConfig("10_TICKERS")
@@ -21,7 +21,16 @@ class AppConfig:
     initial_cash: float = 10000.0
     temperature: float = 1.0
 
-    filter_out: List[str] = field(default_factory=lambda: ["obv", "volume_base", "open", "high", "low", "unix"])
+    filter_out: List[str] = field(
+        default_factory=lambda: [
+            "obv",
+            "volume_base",
+            "open",
+            "high",
+            "low",
+            "unix",
+        ]
+    )
 
     hidden_size: int = 512
     lr: float = 3e-4

@@ -6,22 +6,71 @@ from typing import Dict, List, Literal
 TickerConfigName = Literal["10_TICKERS", "30_TICKERS", "ANOTHER_10_TICKERS"]
 
 TICKER_PRESETS: Dict[TickerConfigName, List[str]] = {
-    "ANOTHER_10_TICKERS": ["BRK.B", "UNH", "V", "MA", "AVGO", "LLY", "JPM", "XOM", "COST", "HD"],
-    "10_TICKERS": ["AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "NVDA", "JPM", "JNJ", "XOM"],
+    "ANOTHER_10_TICKERS": [
+        "BRK.B",
+        "UNH",
+        "V",
+        "MA",
+        "AVGO",
+        "LLY",
+        "JPM",
+        "XOM",
+        "COST",
+        "HD",
+    ],
+    "10_TICKERS": [
+        "AAPL",
+        "MSFT",
+        "AMZN",
+        "GOOGL",
+        "META",
+        "TSLA",
+        "NVDA",
+        "JPM",
+        "JNJ",
+        "XOM",
+    ],
     "30_TICKERS": [
-        "AAPL", "MSFT", "GOOGL", "META", "NVDA", "AMD", "INTC", "IBM",
-        "AMZN", "HD", "MCD", "NKE", "SBUX", "COST",
-        "JPM", "BAC", "WFC", "GS", "MS",
-        "JNJ", "PFE", "MRK", "ABBV", "UNH",
-        "XOM", "CVX", "COP",
-        "CAT", "BA", "GE",
-        "VZ", "T",
+        "AAPL",
+        "MSFT",
+        "GOOGL",
+        "META",
+        "NVDA",
+        "AMD",
+        "INTC",
+        "IBM",
+        "AMZN",
+        "HD",
+        "MCD",
+        "NKE",
+        "SBUX",
+        "COST",
+        "JPM",
+        "BAC",
+        "WFC",
+        "GS",
+        "MS",
+        "JNJ",
+        "PFE",
+        "MRK",
+        "ABBV",
+        "UNH",
+        "XOM",
+        "CVX",
+        "COP",
+        "CAT",
+        "BA",
+        "GE",
+        "VZ",
+        "T",
     ],
 }
+
 
 @dataclass(frozen=True)
 class TickerConfig:
     """Ticker universe preset chosen by name."""
+
     name: TickerConfigName
 
     @property

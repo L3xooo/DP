@@ -16,10 +16,11 @@ class TD3:
     TD3 that expects a flattened state vector (1D per timestep) or batches thereof.
     Create with state_dim = env.observation_space.shape[0].
     """
+
     def __init__(
-        self, 
-        state_dim, 
-        action_dim, 
+        self,
+        state_dim,
+        action_dim,
         hidden_size=512,
         gamma=0.99,
         tau=0.005,
@@ -31,7 +32,9 @@ class TD3:
         device=None,
     ):
         self.device = torch.device(
-            device if device is not None else ("cuda" if torch.cuda.is_available() else "cpu")
+            device
+            if device is not None
+            else ("cuda" if torch.cuda.is_available() else "cpu")
         )
         self.learning_starts = learning_starts
         self.total_it = 0
@@ -43,13 +46,25 @@ class TD3:
         self._expl_noise_anneal = int(noise_anneal_episodes)
         self.current_episode = 0
 
-        self.actor = Actor(input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size).to(self.device)
-        self.critic1 = Critic(state_dim, action_dim, hidden_size).to(self.device)
-        self.critic2 = Critic(state_dim, action_dim, hidden_size).to(self.device)
+        self.actor = Actor(
+            input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size
+        ).to(self.device)
+        self.critic1 = Critic(state_dim, action_dim, hidden_size).to(
+            self.device
+        )
+        self.critic2 = Critic(state_dim, action_dim, hidden_size).to(
+            self.device
+        )
 
-        self.target_actor = Actor(input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size).to(self.device)
-        self.target_critic1 = Critic(state_dim, action_dim, hidden_size).to(self.device)
-        self.target_critic2 = Critic(state_dim, action_dim, hidden_size).to(self.device)
+        self.target_actor = Actor(
+            input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size
+        ).to(self.device)
+        self.target_critic1 = Critic(state_dim, action_dim, hidden_size).to(
+            self.device
+        )
+        self.target_critic2 = Critic(state_dim, action_dim, hidden_size).to(
+            self.device
+        )
 
         self.mu = np.zeros(action_dim)
 
@@ -71,13 +86,23 @@ class TD3:
             self.policy_noise = self._expl_noise_final
             return
 
-        progress = min(self.current_episode / float(self._expl_noise_anneal), 1.0)
+        progress = min(
+            self.current_episode / float(self._expl_noise_anneal), 1.0
+        )
         self.policy_noise = float(
-            self._expl_noise_init + (self._expl_noise_final - self._expl_noise_init) * progress
+            self._expl_noise_init
+            + (self._expl_noise_final - self._expl_noise_init) * progress
         )
 
     @torch.no_grad()
-    def select_action(self, state, temperature=1.0, noise_std = 0.2, noise_clip = 0.5, use_noise: bool = True):
+    def select_action(
+        self,
+        state,
+        temperature=1.0,
+        noise_std=0.2,
+        noise_clip=0.5,
+        use_noise: bool = True,
+    ):
         # state can be 1D (single timestep) or already batched
         if not isinstance(state, (np.ndarray,)):
             state = np.array(state, dtype=np.float32)
@@ -105,20 +130,27 @@ class TD3:
         return action, noisy_logits
 
     def update(self, replay_buffer, batch_size, temperature=1.0):
-
         if replay_buffer.size() < self.learning_starts:
             return None, None
 
         self.logger.info(f"Executing TD3 update step {replay_buffer.size()}")
         self.total_it += 1
-        states, actions, rewards, dones, next_states = replay_buffer.sample_batch(batch_size)
+        states, actions, rewards, dones, next_states = (
+            replay_buffer.sample_batch(batch_size)
+        )
         device = next(self.actor.parameters()).device
 
         states = torch.tensor(states, dtype=torch.float32, device=device)
-        next_states = torch.tensor(next_states, dtype=torch.float32, device=device)
+        next_states = torch.tensor(
+            next_states, dtype=torch.float32, device=device
+        )
         actions = torch.tensor(actions, dtype=torch.float32, device=device)
-        rewards = torch.tensor(rewards, dtype=torch.float32, device=device).unsqueeze(-1)
-        dones = torch.tensor(dones, dtype=torch.float32, device=device).unsqueeze(-1)
+        rewards = torch.tensor(
+            rewards, dtype=torch.float32, device=device
+        ).unsqueeze(-1)
+        dones = torch.tensor(
+            dones, dtype=torch.float32, device=device
+        ).unsqueeze(-1)
 
         # Flatten any per-asset / per-feature dims so networks receive (batch, input_dim)
         if states.dim() > 2:
@@ -130,9 +162,13 @@ class TD3:
             next_logits = self.target_actor(next_states)
             # self.logger.info(f"Next logits: {next_logits}")  # Logovanie hodnoty next_logits
 
-            next_logits_noisy = add_logit_noise(next_logits, self.policy_noise, self.noise_clip)
+            next_logits_noisy = add_logit_noise(
+                next_logits, self.policy_noise, self.noise_clip
+            )
 
-            next_actions = logits_to_weights(next_logits_noisy, temperature=temperature)
+            next_actions = logits_to_weights(
+                next_logits_noisy, temperature=temperature
+            )
             # self.logger.info(f"Next actions: {next_actions}")  # Logovanie next actions
 
             next_q1 = self.target_critic1(next_states, next_actions)
@@ -165,7 +201,9 @@ class TD3:
             actor_logits = self.actor(states).clamp(-50.0, 50.0)
             # self.logger.info(f"Actor Logits: {actor_logits}")
 
-            actor_actions = logits_to_weights(actor_logits, temperature=temperature)
+            actor_actions = logits_to_weights(
+                actor_logits, temperature=temperature
+            )
             # self.logger.info(f"Actor Actions: {actor_actions}")  # Logovanie akcií herca
 
             actor_loss = -self.critic1(states, actor_actions).mean()
@@ -182,21 +220,26 @@ class TD3:
         return critic1_loss.item(), critic2_loss.item()
 
     def _update_target_network(self, target_network, network):
-        for target_param, param in zip(target_network.parameters(), network.parameters()):
-            target_param.data.copy_(self.tau * param.data + (1.0 - self.tau) * target_param.data)
+        for target_param, param in zip(
+            target_network.parameters(), network.parameters()
+        ):
+            target_param.data.copy_(
+                self.tau * param.data + (1.0 - self.tau) * target_param.data
+            )
 
     def save_model(self, directory):
         path = os.path.join(directory, "td3_model.pth")
-        torch.save({
-            'actor_state_dict': self.actor.state_dict(),
-            'critic1_state_dict': self.critic1.state_dict(),
-            'critic2_state_dict': self.critic2.state_dict(),
-        },path)
-        # self.logger.info(f'Model saved to {filename}')
+        torch.save(
+            {
+                'actor_state_dict': self.actor.state_dict(),
+                'critic1_state_dict': self.critic1.state_dict(),
+                'critic2_state_dict': self.critic2.state_dict(),
+            },
+            path,
+        )
 
     def load_model(self, filename='td3_model.pth'):
         checkpoint = torch.load(filename)
         self.actor.load_state_dict(checkpoint['actor_state_dict'])
         self.critic1.load_state_dict(checkpoint['critic1_state_dict'])
         self.critic2.load_state_dict(checkpoint['critic2_state_dict'])
-        # print(f'Model loaded from {filename}')

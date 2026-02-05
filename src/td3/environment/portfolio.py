@@ -10,16 +10,21 @@ from td3.utils.prev_curr import PrevCurr
 
 DEFAULT_PORTFOLIO_VALUE = 10000.0
 
+
 @WithLogger()
 class PortfolioEnv(gym.Env):
-    def __init__(self,
-                 features: np.ndarray,
-                 prices: np.ndarray = None,
-                 tickers: list = None,
-                 app_config: AppConfig = None):
+    def __init__(
+        self,
+        features: np.ndarray,
+        prices: np.ndarray = None,
+        tickers: list = None,
+        app_config: AppConfig = None,
+    ):
         super(PortfolioEnv, self).__init__()
 
-        assert features.ndim == 3, "features must be a 3D numpy array (T, N, F)"
+        assert features.ndim == 3, (
+            "features must be a 3D numpy array (T, N, F)"
+        )
         self.features = features.astype(np.float32)
         self.current_step = None
         # From the shape get number of steps, assets and feature dimension
@@ -33,7 +38,7 @@ class PortfolioEnv(gym.Env):
         # Coefficients
         self.transaction_coefficient = 0.001
         self.risk_aversion_coefficient = 0.005
-        
+
         # Historical values
         self.portfolio_value_history = []
         self.portfolio_weights_history = []
@@ -48,8 +53,15 @@ class PortfolioEnv(gym.Env):
         self.portfolio_cash = None
         self.portfolio_value = None
 
-        self.action_space = spaces.Box(low=0.0, high=1.0, shape=(self.num_assets + 1,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_assets * self.feature_dim,), dtype=np.float32)
+        self.action_space = spaces.Box(
+            low=0.0, high=1.0, shape=(self.num_assets + 1,), dtype=np.float32
+        )
+        self.observation_space = spaces.Box(
+            low=-np.inf,
+            high=np.inf,
+            shape=(self.num_assets * self.feature_dim,),
+            dtype=np.float32,
+        )
 
     def _get_seed(self, seed=None):
         self.seed_value = seed
@@ -66,16 +78,22 @@ class PortfolioEnv(gym.Env):
         return self.features[next_step].flatten()
 
     def _get_state(self):
-        return np.concatenate([self._get_features_current().flatten()], axis=0).astype(np.float32)
+        return np.concatenate(
+            [self._get_features_current().flatten()], axis=0
+        ).astype(np.float32)
 
     def _get_state_next(self):
-        return np.concatenate([self._get_features_next().flatten()], axis=0).astype(np.float32)
+        return np.concatenate(
+            [self._get_features_next().flatten()], axis=0
+        ).astype(np.float32)
 
     def _calculate_portfolio_value(self, prices: np.ndarray = None) -> float:
         p = self._get_prices() if prices is None else prices
 
         if p.shape != self.shares.curr.shape:
-            raise ValueError(f"prices shape {p.shape} != shares shape {self.shares.curr.shape}")
+            raise ValueError(
+                f"prices shape {p.shape} != shares shape {self.shares.curr.shape}"
+            )
 
         return float(self.portfolio_cash.curr + p.dot(self.shares.curr))
 
@@ -89,15 +107,25 @@ class PortfolioEnv(gym.Env):
         # transaction_cost = self._calculate_transaction_cost(shares_changes)
         # risk_cost = self._calculate_risk_cost()
         portfolio_value = self._calculate_portfolio_value()
-        next_portfolio_value = self._calculate_portfolio_value(self._get_prices(1))
-        return float(((next_portfolio_value - portfolio_value) / (portfolio_value + 1e-12)))
+        next_portfolio_value = self._calculate_portfolio_value(
+            self._get_prices(1)
+        )
+        return float(
+            (
+                (next_portfolio_value - portfolio_value)
+                / (portfolio_value + 1e-12)
+            )
+        )
 
     def _calculate_risk_cost(self):
         """
         Computes risk cost.
         Formula: β × σ²_t
         """
-        return self.risk_aversion_coefficient * self._calculate_portfolio_variance()
+        return (
+            self.risk_aversion_coefficient
+            * self._calculate_portfolio_variance()
+        )
 
     def _calculate_portfolio_variance(self, window: int = 20) -> float:
         """
@@ -107,7 +135,7 @@ class PortfolioEnv(gym.Env):
 
         if len(self.portfolio_value_history) < window + 1:
             return 0.0
-        recent = np.array(self.portfolio_value_history[-(window + 1):])
+        recent = np.array(self.portfolio_value_history[-(window + 1) :])
         returns = (recent[1:] - recent[:-1]) / recent[:-1]
         return float(np.mean((returns - returns.mean()) ** 2))
 
@@ -116,7 +144,9 @@ class PortfolioEnv(gym.Env):
         Calculate the transaction cost for the given shares changes.
         Formula: cᵗʳᵃⁿₜ = ξ × (pₜᵀ · |kₜ|)
         """
-        return self.transaction_coefficient * np.dot(self._get_prices(), np.abs(shares_changes))
+        return self.transaction_coefficient * np.dot(
+            self._get_prices(), np.abs(shares_changes)
+        )
 
     def reset(self, seed=None, options=None):
         self._get_seed(seed)
@@ -128,12 +158,20 @@ class PortfolioEnv(gym.Env):
         self.portfolio_value_history = [DEFAULT_PORTFOLIO_VALUE]
         self.portfolio_weights_history = [w0]
 
-        self.portfolio_value = PrevCurr(prev=float(0), curr=float(DEFAULT_PORTFOLIO_VALUE))
-        self.portfolio_cash = PrevCurr(prev=float(0), curr=float(DEFAULT_PORTFOLIO_VALUE))
+        self.portfolio_value = PrevCurr(
+            prev=float(0), curr=float(DEFAULT_PORTFOLIO_VALUE)
+        )
+        self.portfolio_cash = PrevCurr(
+            prev=float(0), curr=float(DEFAULT_PORTFOLIO_VALUE)
+        )
 
         # Shares & assets prices everything zero (1 step all in cash)
-        self.shares = PrevCurr(prev=zeros_assets.copy(), curr=zeros_assets.copy())
-        self.assets_prices = PrevCurr(prev=zeros_assets.copy(), curr=zeros_assets.copy())
+        self.shares = PrevCurr(
+            prev=zeros_assets.copy(), curr=zeros_assets.copy()
+        )
+        self.assets_prices = PrevCurr(
+            prev=zeros_assets.copy(), curr=zeros_assets.copy()
+        )
 
         # Weights in each asset & cash
         self.weights = PrevCurr(prev=zeros_assets.copy(), curr=w0.copy())
@@ -149,24 +187,42 @@ class PortfolioEnv(gym.Env):
         self.assets_prices.set_prev_from_curr()
 
         # Calculate the current portfolio value with previous cash and shares held
-        self.portfolio_value.set_curr(self.portfolio_cash.prev + self._get_prices().dot(self.shares.prev))
+        self.portfolio_value.set_curr(
+            self.portfolio_cash.prev + self._get_prices().dot(self.shares.prev)
+        )
         # log_values_with_color(self.logger, {"Portfolio Value": self.portfolio_value.curr})
 
         # Do the changes in portfolio based on the new weights
         self.weights.set_curr(action)
-        log_values_with_color(self.logger, {"Weights": self.weights.curr, "Portfolio Value": self.portfolio_value.curr})
+        log_values_with_color(
+            self.logger,
+            {
+                "Weights": self.weights.curr,
+                "Portfolio Value": self.portfolio_value.curr,
+            },
+        )
 
-        self.portfolio_cash.set_curr(self.portfolio_value.curr * self.weights.curr[0])
-        self.assets_prices.set_curr(self.weights.curr[1:] * self.portfolio_value.curr)
+        self.portfolio_cash.set_curr(
+            self.portfolio_value.curr * self.weights.curr[0]
+        )
+        self.assets_prices.set_curr(
+            self.weights.curr[1:] * self.portfolio_value.curr
+        )
 
         # Calculate how many shares per asset with new prices
         self.shares.set_curr(self.assets_prices.curr / self._get_prices())
         shares_changes = self.shares.curr - self.shares.prev
         reward = self._calculate_reward(shares_changes)
 
-        self.current_step +=1
+        self.current_step += 1
 
-        return self._get_state_next(), float(reward), self.current_step + 1 >= self.num_steps - 1, False, {}
+        return (
+            self._get_state_next(),
+            float(reward),
+            self.current_step + 1 >= self.num_steps - 1,
+            False,
+            {},
+        )
 
     def step(self, action):
         return self._step_v2(action)

@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch
 
+
 class Critic(nn.Module):
     def __init__(self, state_dim, action_dim, hidden_size=64):
         super(Critic, self).__init__()

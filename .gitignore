@@ -8,3 +8,4 @@ plots/
 *.pyo
 *.pyd
 simulations/
+.DS_Store

@@ -7,10 +7,10 @@ import numpy as np
 
 class DataProcessor:
     def __init__(
-            self,
-            data_dir: str,
-            date_col: str = "date",
-            file_pattern: str = "{ticker}/normalized.csv",
+        self,
+        data_dir: str,
+        date_col: str = "date",
+        file_pattern: str = "{ticker}/normalized.csv",
     ):
         self.data_dir = data_dir
         self.date_col = date_col
@@ -19,14 +19,16 @@ class DataProcessor:
     # ------------------------------------------------------------------
 
     def _file_path(self, ticker: str) -> str:
-        return os.path.join(self.data_dir, self.file_pattern.format(ticker=ticker))
+        return os.path.join(
+            self.data_dir, self.file_pattern.format(ticker=ticker)
+        )
 
     # ------------------------------------------------------------------
 
     def load_single_ticker(
-            self,
-            ticker: str,
-            filter_cols: Optional[List[str]] = None,
+        self,
+        ticker: str,
+        filter_cols: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """
         Načíta všetky stĺpce pre daný ticker (CSV), voliteľne ich prefiltroval.
@@ -55,12 +57,12 @@ class DataProcessor:
     # ------------------------------------------------------------------
 
     def load_panel(
-            self,
-            tickers: List[str],
-            filter_cols: Optional[List[str]] = None,
-            join: str = "inner",
-            start: Optional[Union[str, pd.Timestamp]] = None,
-            end: Optional[Union[str, pd.Timestamp]] = None,
+        self,
+        tickers: List[str],
+        filter_cols: Optional[List[str]] = None,
+        join: str = "inner",
+        start: Optional[Union[str, pd.Timestamp]] = None,
+        end: Optional[Union[str, pd.Timestamp]] = None,
     ) -> pd.DataFrame:
         """
         Načíta všetky tickery, všetky stĺpce (alebo vybrané), zarovná podľa dátumu
@@ -86,8 +88,8 @@ class DataProcessor:
     # ------------------------------------------------------------------
 
     def to_3d(
-            self,
-            panel_df: pd.DataFrame,
+        self,
+        panel_df: pd.DataFrame,
     ) -> Tuple[np.ndarray, List[pd.Timestamp], List[str], List[str]]:
         """
         Z MultiIndex DataFrame (ticker, feature) spraví 3D numpy array.
@@ -98,8 +100,13 @@ class DataProcessor:
           tickers: zoznam tickerov (N)
           features: zoznam feature názvov (F)
         """
-        if not isinstance(panel_df.columns, pd.MultiIndex) or panel_df.columns.nlevels != 2:
-            raise ValueError("panel_df must have MultiIndex columns with levels (ticker, feature)")
+        if (
+            not isinstance(panel_df.columns, pd.MultiIndex)
+            or panel_df.columns.nlevels != 2
+        ):
+            raise ValueError(
+                "panel_df must have MultiIndex columns with levels (ticker, feature)"
+            )
 
         tickers = list(panel_df.columns.get_level_values(0).unique())
         features = list(panel_df.columns.get_level_values(1).unique())

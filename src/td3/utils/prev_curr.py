@@ -3,6 +3,7 @@ from typing import Generic, TypeVar
 
 T = TypeVar("T")
 
+
 @dataclass
 class PrevCurr(Generic[T]):
     prev: T

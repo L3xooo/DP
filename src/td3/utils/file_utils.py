@@ -7,6 +7,7 @@ MODEL_DIR = "models"
 WEIGHTS_DIR = "weights"
 PLOT_DIR = "plots"
 
+
 def create_run_directories():
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
@@ -14,7 +15,9 @@ def create_run_directories():
     os.makedirs(BASE_SIMULATION_DIR, exist_ok=True)
 
     # Create a new run directory with timestamp
-    run_dir = os.path.join(BASE_SIMULATION_DIR, f"{SIMULATION_PREFIX}_{timestamp}")
+    run_dir = os.path.join(
+        BASE_SIMULATION_DIR, f"{SIMULATION_PREFIX}_{timestamp}"
+    )
     os.makedirs(run_dir, exist_ok=False)
 
     # Define subdirectory paths

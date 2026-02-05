@@ -2,9 +2,17 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
-def plot_line_chart(data, label, title, image_name, save_dir=None,
-    x_label="Episode", y_label="Value", dpi=200):
 
+def plot_line_chart(
+    data,
+    label,
+    title,
+    image_name,
+    save_dir=None,
+    x_label="Episode",
+    y_label="Value",
+    dpi=200,
+):
     plt.figure(figsize=(10, 5))
     plt.plot(data, label=label)
     plt.xlabel(x_label)
@@ -21,6 +29,7 @@ def plot_line_chart(data, label, title, image_name, save_dir=None,
     plt.show()
     plt.close()
 
+
 def plot_episode_weights(
     all_weights,
     tickers,
@@ -30,7 +39,6 @@ def plot_episode_weights(
     title=None,
     dpi=200,
 ):
-
     # print(all_weights)
     if len(all_weights) == 0:
         return None

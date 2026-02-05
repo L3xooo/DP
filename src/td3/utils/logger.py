@@ -5,8 +5,9 @@ from td3.utils.colors import Colors
 from td3.utils.formater import format_number_value, ColoredFormatter
 
 
-def log_values_with_color(logger, values: dict, use_color=False, level="info", log_name=None):
-
+def log_values_with_color(
+    logger, values: dict, use_color=False, level="info", log_name=None
+):
     formatted_items = []
 
     for key, value in values.items():
@@ -22,7 +23,10 @@ def log_values_with_color(logger, values: dict, use_color=False, level="info", l
     log_fn = getattr(logger, level, logger.info)
     log_fn(message)
 
-def log_stock_value(logger, stocks, values, log_name, use_color=False, level="info", decimals=2):
+
+def log_stock_value(
+    logger, stocks, values, log_name, use_color=False, level="info", decimals=2
+):
     """Log stock values with optional color coding (green for positive, red for negative, white for zero)."""
     parts = []
 
@@ -63,7 +67,7 @@ class LoggerFactory:
         LoggerFactory.clear_log()
         logger = logging.getLogger(name)
         logger.setLevel(logging.INFO)
-        logger.disabled = False
+        logger.disabled = True
 
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(ColoredFormatter())
