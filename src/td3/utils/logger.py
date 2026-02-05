@@ -51,10 +51,6 @@ def log_stock_value(
     log_fn = getattr(logger, level, logger.info)
     log_fn(f"[{log_name}]: {formatted}")
 
-    # if formatted:
-    #     log_fn(f"[{log_name}]: {formatted}")
-
-
 class LoggerFactory:
     LOG_FILE = "app.log"
 

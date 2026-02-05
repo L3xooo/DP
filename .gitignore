@@ -9,3 +9,4 @@ plots/
 *.pyd
 simulations/
 .DS_Store
+weights.csv

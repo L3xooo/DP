@@ -2,13 +2,16 @@ from dataclasses import dataclass, field, asdict
 from typing import Optional, List
 from pathlib import Path
 import json
+import torch
 
 from td3.config.ticker_config import TickerConfig
+from td3.utils.logger import WithLogger
 
 
+@WithLogger()
 @dataclass(frozen=True)
 class AppConfig:
-    number_of_episodes: int = 500
+    number_of_episodes: int = 100
     batch_size: int = 64
     learning_start_episode: int | None = 100
     replay_buffer_size: int = 100_000
@@ -38,6 +41,18 @@ class AppConfig:
     noise_final: float = 0.05
     noise_anneal_episodes: int = 500
     device: Optional[str] = None
+
+    def __post_init__(self):
+        if self.device is not None:
+            return
+        if torch.cuda.is_available():
+            chosen = "cuda"
+        # elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+        #     chosen = "mps"
+        else:
+            chosen = "cpu"
+        print("Device chosen:", chosen)
+        object.__setattr__(self, "device", chosen)
 
     def to_json(self, out_dir: str | Path) -> None:
         d = asdict(self)

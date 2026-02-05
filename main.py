@@ -36,6 +36,7 @@ if __name__ == "__main__":
     state_dim = int(env.observation_space.shape[0])
 
     td3_agent = TD3(
+        device=app_config.device,
         state_dim=state_dim,
         action_dim=action_dim,
         noise_anneal_episodes=app_config.number_of_episodes,

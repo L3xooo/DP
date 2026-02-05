@@ -112,7 +112,7 @@ class TD3:
         if state.ndim == 1:
             state = state.reshape(1, -1)
 
-        state_t = torch.tensor(state, dtype=torch.float32)
+        state_t = torch.tensor(state, dtype=torch.float32, device=self.device)
         logits = self.actor(state_t)
 
         if not use_noise:
@@ -138,19 +138,12 @@ class TD3:
         states, actions, rewards, dones, next_states = (
             replay_buffer.sample_batch(batch_size)
         )
-        device = next(self.actor.parameters()).device
 
-        states = torch.tensor(states, dtype=torch.float32, device=device)
-        next_states = torch.tensor(
-            next_states, dtype=torch.float32, device=device
-        )
-        actions = torch.tensor(actions, dtype=torch.float32, device=device)
-        rewards = torch.tensor(
-            rewards, dtype=torch.float32, device=device
-        ).unsqueeze(-1)
-        dones = torch.tensor(
-            dones, dtype=torch.float32, device=device
-        ).unsqueeze(-1)
+        states = torch.tensor(states, dtype=torch.float32, device=self.device)
+        next_states = torch.tensor(next_states, dtype=torch.float32, device=self.device)
+        actions = torch.tensor(actions, dtype=torch.float32, device=self.device)
+        rewards = torch.tensor(rewards, dtype=torch.float32, device=self.device).unsqueeze(-1)
+        dones = torch.tensor(dones, dtype=torch.float32, device=self.device).unsqueeze(-1)
 
         # Flatten any per-asset / per-feature dims so networks receive (batch, input_dim)
         if states.dim() > 2:
