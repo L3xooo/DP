@@ -3,6 +3,7 @@ app.log
 Untitled.pdf
 plots/
 
+.venv/
 **/__pycache__/
 *.pyc
 *.pyo
