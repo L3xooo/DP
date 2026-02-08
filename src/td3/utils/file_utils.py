@@ -15,9 +15,7 @@ def create_run_directories():
     os.makedirs(BASE_SIMULATION_DIR, exist_ok=True)
 
     # Create a new run directory with timestamp
-    run_dir = os.path.join(
-        BASE_SIMULATION_DIR, f"{SIMULATION_PREFIX}_{timestamp}"
-    )
+    run_dir = os.path.join(BASE_SIMULATION_DIR, f"{SIMULATION_PREFIX}_{timestamp}")
     os.makedirs(run_dir, exist_ok=False)
 
     # Define subdirectory paths

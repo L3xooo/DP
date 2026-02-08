@@ -32,9 +32,7 @@ class TD3:
         device=None,
     ):
         self.device = torch.device(
-            device
-            if device is not None
-            else ("cuda" if torch.cuda.is_available() else "cpu")
+            device if device is not None else ("cuda" if torch.cuda.is_available() else "cpu")
         )
         self.learning_starts = learning_starts
         self.total_it = 0
@@ -46,25 +44,17 @@ class TD3:
         self._expl_noise_anneal = int(noise_anneal_episodes)
         self.current_episode = 0
 
-        self.actor = Actor(
-            input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size
-        ).to(self.device)
-        self.critic1 = Critic(state_dim, action_dim, hidden_size).to(
+        self.actor = Actor(input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size).to(
             self.device
         )
-        self.critic2 = Critic(state_dim, action_dim, hidden_size).to(
-            self.device
-        )
+        self.critic1 = Critic(state_dim, action_dim, hidden_size).to(self.device)
+        self.critic2 = Critic(state_dim, action_dim, hidden_size).to(self.device)
 
         self.target_actor = Actor(
             input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size
         ).to(self.device)
-        self.target_critic1 = Critic(state_dim, action_dim, hidden_size).to(
-            self.device
-        )
-        self.target_critic2 = Critic(state_dim, action_dim, hidden_size).to(
-            self.device
-        )
+        self.target_critic1 = Critic(state_dim, action_dim, hidden_size).to(self.device)
+        self.target_critic2 = Critic(state_dim, action_dim, hidden_size).to(self.device)
 
         self.mu = np.zeros(action_dim)
 
@@ -86,12 +76,9 @@ class TD3:
             self.policy_noise = self._expl_noise_final
             return
 
-        progress = min(
-            self.current_episode / float(self._expl_noise_anneal), 1.0
-        )
+        progress = min(self.current_episode / float(self._expl_noise_anneal), 1.0)
         self.policy_noise = float(
-            self._expl_noise_init
-            + (self._expl_noise_final - self._expl_noise_init) * progress
+            self._expl_noise_init + (self._expl_noise_final - self._expl_noise_init) * progress
         )
 
     @torch.no_grad()
@@ -131,13 +118,11 @@ class TD3:
 
     def update(self, replay_buffer, batch_size, temperature=1.0):
         if replay_buffer.size() < self.learning_starts:
-            return None, None
+            return None
 
         self.logger.info(f"Executing TD3 update step {replay_buffer.size()}")
         self.total_it += 1
-        states, actions, rewards, dones, next_states = (
-            replay_buffer.sample_batch(batch_size)
-        )
+        states, actions, rewards, dones, next_states = replay_buffer.sample_batch(batch_size)
 
         states = torch.tensor(states, dtype=torch.float32, device=self.device)
         next_states = torch.tensor(next_states, dtype=torch.float32, device=self.device)
@@ -155,14 +140,9 @@ class TD3:
             next_logits = self.target_actor(next_states)
             # self.logger.info(f"Next logits: {next_logits}")  # Logovanie hodnoty next_logits
 
-            next_logits_noisy = add_logit_noise(
-                next_logits, self.policy_noise, self.noise_clip
-            )
+            next_logits_noisy = add_logit_noise(next_logits, self.policy_noise, self.noise_clip)
 
-            next_actions = logits_to_weights(
-                next_logits_noisy, temperature=temperature
-            )
-            # self.logger.info(f"Next actions: {next_actions}")  # Logovanie next actions
+            next_actions = logits_to_weights(next_logits_noisy, temperature=temperature)
 
             next_q1 = self.target_critic1(next_states, next_actions)
             next_q2 = self.target_critic2(next_states, next_actions)
@@ -190,17 +170,27 @@ class TD3:
         critic2_loss.backward()
         self.critic2_optimizer.step()
 
+        metrics = {
+            "it": int(self.total_it),
+            "buffer_size": int(replay_buffer.size()),
+            "critic1_loss": float(critic1_loss.item()),
+            "critic2_loss": float(critic2_loss.item()),
+            "q1_mean": float(q1.mean().item()),
+            "q2_mean": float(q2.mean().item()),
+            "q_diff_mean": float((q1 - q2).abs().mean().item()),
+            "next_q_mean": float(next_q.mean().item()),
+            "target_q_mean": float(target_q.mean().item()),
+            "reward_mean": float(rewards.mean().item()),
+            "reward_std": float(rewards.std().item()),
+            "actor_updated": False,
+            "actor_loss": None,
+            "actor_q_mean": None,
+        }
+
         if self.total_it % 2 == 0:
             actor_logits = self.actor(states).clamp(-50.0, 50.0)
-            # self.logger.info(f"Actor Logits: {actor_logits}")
-
-            actor_actions = logits_to_weights(
-                actor_logits, temperature=temperature
-            )
-            # self.logger.info(f"Actor Actions: {actor_actions}")  # Logovanie akcií herca
-
+            actor_actions = logits_to_weights(actor_logits, temperature=temperature)
             actor_loss = -self.critic1(states, actor_actions).mean()
-            # self.logger.info(f"Actor Loss: {actor_loss.item()}")  # Logovanie straty herca
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
@@ -210,15 +200,15 @@ class TD3:
             self._update_target_network(self.target_critic1, self.critic1)
             self._update_target_network(self.target_critic2, self.critic2)
 
-        return critic1_loss.item(), critic2_loss.item()
+            metrics["actor_updated"] = True
+            metrics["actor_loss"] = float(actor_loss.item())
+            metrics["actor_q_mean"] = float((-actor_loss).item())
+
+        return metrics
 
     def _update_target_network(self, target_network, network):
-        for target_param, param in zip(
-            target_network.parameters(), network.parameters()
-        ):
-            target_param.data.copy_(
-                self.tau * param.data + (1.0 - self.tau) * target_param.data
-            )
+        for target_param, param in zip(target_network.parameters(), network.parameters()):
+            target_param.data.copy_(self.tau * param.data + (1.0 - self.tau) * target_param.data)
 
     def save_model(self, directory):
         path = os.path.join(directory, "td3_model.pth")

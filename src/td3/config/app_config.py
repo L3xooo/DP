@@ -12,7 +12,7 @@ from td3.utils.logger import WithLogger
 @dataclass(frozen=True)
 class AppConfig:
     number_of_episodes: int = 100
-    batch_size: int = 64
+    batch_size: int = 128
     learning_start_episode: int | None = 100
     replay_buffer_size: int = 100_000
 

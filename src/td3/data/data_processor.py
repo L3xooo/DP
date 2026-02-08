@@ -19,9 +19,7 @@ class DataProcessor:
     # ------------------------------------------------------------------
 
     def _file_path(self, ticker: str) -> str:
-        return os.path.join(
-            self.data_dir, self.file_pattern.format(ticker=ticker)
-        )
+        return os.path.join(self.data_dir, self.file_pattern.format(ticker=ticker))
 
     # ------------------------------------------------------------------
 
@@ -100,13 +98,8 @@ class DataProcessor:
           tickers: zoznam tickerov (N)
           features: zoznam feature názvov (F)
         """
-        if (
-            not isinstance(panel_df.columns, pd.MultiIndex)
-            or panel_df.columns.nlevels != 2
-        ):
-            raise ValueError(
-                "panel_df must have MultiIndex columns with levels (ticker, feature)"
-            )
+        if not isinstance(panel_df.columns, pd.MultiIndex) or panel_df.columns.nlevels != 2:
+            raise ValueError("panel_df must have MultiIndex columns with levels (ticker, feature)")
 
         tickers = list(panel_df.columns.get_level_values(0).unique())
         features = list(panel_df.columns.get_level_values(1).unique())
