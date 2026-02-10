@@ -2,6 +2,35 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
+def plot_multi_line_chart(
+    data_series,
+    labels,
+    title,
+    image_name = "multi_line_chart.png",
+    save_dir=None,
+    x_label="Episode",
+    y_label="Value",
+    dpi=200,
+):
+    plt.figure(figsize=(10, 5))
+
+    for data, label in zip(data_series, labels):
+        plt.plot(data, label=label)
+
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.title(title)
+    plt.legend()
+    plt.grid(True)
+
+    if save_dir:
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, image_name)
+        plt.savefig(save_path, dpi=dpi)
+
+    plt.show()
+    plt.close()
+
 
 def plot_line_chart(
     data,

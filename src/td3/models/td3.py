@@ -1,8 +1,9 @@
-# python
 import torch
 from torch import optim
 import torch.nn as nn
 import numpy as np
+
+from td3.metrics.metrics import StepMetrics
 from td3.models.actor import Actor, add_logit_noise, logits_to_weights
 from td3.models.critic import Critic
 import os
@@ -12,11 +13,6 @@ from td3.utils.logger import WithLogger
 
 @WithLogger()
 class TD3:
-    """
-    TD3 that expects a flattened state vector (1D per timestep) or batches thereof.
-    Create with state_dim = env.observation_space.shape[0].
-    """
-
     def __init__(
         self,
         state_dim,
@@ -31,9 +27,7 @@ class TD3:
         learning_starts=1000,
         device=None,
     ):
-        self.device = torch.device(
-            device if device is not None else ("cuda" if torch.cuda.is_available() else "cpu")
-        )
+        self.device = device
         self.learning_starts = learning_starts
         self.total_it = 0
         self.policy_noise = 0.2
@@ -86,8 +80,8 @@ class TD3:
         self,
         state,
         temperature=1.0,
-        noise_std=0.2,
-        noise_clip=0.5,
+        noise_std=None,
+        noise_clip=None,
         use_noise: bool = True,
     ):
         # state can be 1D (single timestep) or already batched
@@ -116,11 +110,10 @@ class TD3:
         action = weights.squeeze(0).cpu().numpy()
         return action, noisy_logits
 
-    def update(self, replay_buffer, batch_size, temperature=1.0):
+    def update(self, replay_buffer, batch_size, temperature=1.0) -> StepMetrics:
         if replay_buffer.size() < self.learning_starts:
-            return None
+            return StepMetrics()
 
-        self.logger.info(f"Executing TD3 update step {replay_buffer.size()}")
         self.total_it += 1
         states, actions, rewards, dones, next_states = replay_buffer.sample_batch(batch_size)
 
@@ -159,9 +152,6 @@ class TD3:
         critic1_loss = nn.MSELoss()(q1, target_q)
         critic2_loss = nn.MSELoss()(q2, target_q)
 
-        # self.logger.info(f"Critic1 Loss: {critic1_loss.item()}")  # Logovanie straty kritika 1
-        # self.logger.info(f"Critic2 Loss: {critic2_loss.item()}")  # Logovanie straty kritika 2
-
         self.critic1_optimizer.zero_grad()
         critic1_loss.backward()
         self.critic1_optimizer.step()
@@ -169,23 +159,6 @@ class TD3:
         self.critic2_optimizer.zero_grad()
         critic2_loss.backward()
         self.critic2_optimizer.step()
-
-        metrics = {
-            "it": int(self.total_it),
-            "buffer_size": int(replay_buffer.size()),
-            "critic1_loss": float(critic1_loss.item()),
-            "critic2_loss": float(critic2_loss.item()),
-            "q1_mean": float(q1.mean().item()),
-            "q2_mean": float(q2.mean().item()),
-            "q_diff_mean": float((q1 - q2).abs().mean().item()),
-            "next_q_mean": float(next_q.mean().item()),
-            "target_q_mean": float(target_q.mean().item()),
-            "reward_mean": float(rewards.mean().item()),
-            "reward_std": float(rewards.std().item()),
-            "actor_updated": False,
-            "actor_loss": None,
-            "actor_q_mean": None,
-        }
 
         if self.total_it % 2 == 0:
             actor_logits = self.actor(states).clamp(-50.0, 50.0)
@@ -200,18 +173,14 @@ class TD3:
             self._update_target_network(self.target_critic1, self.critic1)
             self._update_target_network(self.target_critic2, self.critic2)
 
-            metrics["actor_updated"] = True
-            metrics["actor_loss"] = float(actor_loss.item())
-            metrics["actor_q_mean"] = float((-actor_loss).item())
-
-        return metrics
+        return StepMetrics()
 
     def _update_target_network(self, target_network, network):
         for target_param, param in zip(target_network.parameters(), network.parameters()):
             target_param.data.copy_(self.tau * param.data + (1.0 - self.tau) * target_param.data)
 
-    def save_model(self, directory):
-        path = os.path.join(directory, "td3_model.pth")
+    def save_model(self, directory, filename='td3_model.pth'):
+        path = os.path.join(directory, filename)
         torch.save(
             {
                 'actor_state_dict': self.actor.state_dict(),

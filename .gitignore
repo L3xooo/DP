@@ -9,5 +9,6 @@ plots/
 *.pyo
 *.pyd
 simulations/
+simulations_loop/
 .DS_Store
 weights.csv
