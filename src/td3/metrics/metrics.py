@@ -1,6 +1,9 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from pytest_bdd import steps
+
+
 @dataclass
 class StepMetrics:
     reward: float = 0.0
@@ -29,7 +32,7 @@ class EpisodeMetrics:
     def aggregate(self) -> None:
         self.total_reward = sum(step.reward for step in self.steps)
         self.final_portfolio_value = self.steps[-1].portfolio_value if self.steps else 0.0
-        self.steps = [] # Empty list after aggregation
+        self.steps = []
 
     def __str__(self):
         return f"EpisodeMetrics(total_reward={self.total_reward})"
@@ -37,7 +40,12 @@ class EpisodeMetrics:
 @dataclass
 class RunMetrics:
     run_id: str = None
-    episodes: List[EpisodeMetrics] = field(default_factory=list)
+    episodes: List[EpisodeMetrics | StepMetrics] = field(default_factory=list)
+
+    def start_step(self) -> StepMetrics:
+        step = StepMetrics()
+        self.episodes.append(step)
+        return step
 
     def start_episode(self) -> EpisodeMetrics:
         ep = EpisodeMetrics()

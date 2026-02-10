@@ -1,6 +1,6 @@
 from td3.config.app_config import AppConfig
 from td3.environment.portfolio import PortfolioEnv
-from td3.metrics.metrics import StepMetrics, RunMetrics, ExperimentMetrics
+from td3.metrics.metrics import ExperimentMetrics
 from td3.models.td3 import TD3
 from td3.data.data_processor import DataProcessor
 from td3.utils.file_utils import create_experiment_directories, create_directory

@@ -4,6 +4,7 @@ from datetime import datetime
 EXPERIMENT_PREFIX = "experiment"
 SIMULATION_PREFIX = "run"
 BASE_SIMULATION_DIR = "simulations"
+BASE_TEST_SIMULATION_DIR = "test_simulations"
 MODEL_DIR = "models"
 WEIGHTS_DIR = "weights"
 PLOT_DIR = "plots"
@@ -19,11 +20,12 @@ def create_experiment_directories(simulation_dir=BASE_SIMULATION_DIR):
     os.makedirs(experiment_dir, exist_ok=False)
 
     plots_dir = os.path.join(experiment_dir, "plots")
-    models_dir = os.path.join(experiment_dir, "models")
-    weights_dir = os.path.join(experiment_dir, "weights")
-
     os.makedirs(plots_dir, exist_ok=False)
+
+    models_dir = os.path.join(experiment_dir, "models")
     os.makedirs(models_dir, exist_ok=False)
+
+    weights_dir = os.path.join(experiment_dir, "weights")
     os.makedirs(weights_dir, exist_ok=False)
 
     return experiment_dir, plots_dir, models_dir, weights_dir
