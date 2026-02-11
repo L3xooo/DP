@@ -10,5 +10,6 @@ plots/
 *.pyd
 simulations/
 test_simulations/
+model_viz
 .DS_Store
 weights.csv

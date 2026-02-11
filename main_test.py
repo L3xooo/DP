@@ -4,35 +4,41 @@ from td3.data.data_processor import DataProcessor
 from td3.environment.portfolio import PortfolioEnv
 from td3.metrics.metrics import ExperimentMetrics
 from td3.models.td3 import TD3
-from td3.utils.file_utils import create_experiment_directories, BASE_TEST_SIMULATION_DIR
+from td3.utils.date_utils import check_if_later_date
+from td3.utils.file_utils import create_experiment_directories, RunType
 from td3.utils.graph_utils import plot_multi_line_chart
 
-MODEL_DIRECTORY = "simulations/experiment_2026-02-10_10-33-21/models/"
+EXPERIMENT_DIR = "simulations/experiment_2026-02-10_10-33-21/"
 
-# import sys
-# import os
-# sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+def load_config() -> AppConfig:
+    config_path = os.path.join(EXPERIMENT_DIR, "config.json")
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Config file not found at {config_path}")
+    return AppConfig.from_json(config_path)
 
 def get_model_paths():
     names = []
     paths = []
-    for filename in os.listdir(MODEL_DIRECTORY):
+    for filename in os.listdir(EXPERIMENT_DIR + "models"):
         if filename.endswith(".pth"):
             names.append(filename)
-            paths.append(os.path.join(MODEL_DIRECTORY, filename))
+            paths.append(os.path.join(EXPERIMENT_DIR + "models", filename))
     return names, paths
 
 def main():
+    train_config = load_config()
     model_names, model_paths = get_model_paths()
 
     experiment_metrics = ExperimentMetrics()
-    experiment_dir, plots_dir, models_dir, weights_dir = create_experiment_directories(simulation_dir=BASE_TEST_SIMULATION_DIR)
+    experiment_dir, plots_dir, models_dir, weights_dir = create_experiment_directories(run_type=RunType.TEST)
     app_config = AppConfig(
         start_date="2019-01-21",
         end_date="2023-01-01",
         learning_start_episode=None,
         number_of_episodes=1,
     )
+
+    check_if_later_date(app_config.start_date, train_config.end_date)
 
     dp = DataProcessor(data_dir=app_config.data_dir)
     df = dp.load_panel(

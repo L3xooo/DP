@@ -11,7 +11,7 @@ from td3.utils.logger import WithLogger
 @WithLogger()
 @dataclass(frozen=True)
 class AppConfig:
-    iterations: int = 6
+    iterations: int = 5
     number_of_episodes: int = 50
     batch_size: int = 128
     learning_start_episode: int | None = 100
@@ -69,3 +69,22 @@ class AppConfig:
         out_path = out_dir / "config.json"
         with out_path.open("w", encoding="utf-8") as f:
             json.dump(d, f, indent=2)
+
+    @classmethod
+    def from_json(cls, path: str | Path) -> "AppConfig":
+        path = Path(path)
+
+        if path.is_dir():
+            path = path / "config.json"
+
+        with path.open("r", encoding="utf-8") as f:
+            d: dict[str, Any] = json.load(f)
+
+        # rebuild ticker_config
+        tc = d.get("ticker_config")
+        if isinstance(tc, dict):
+            d["ticker_config"] = TickerConfig(tc.get("name", "10_TICKERS"))
+        else:
+            d["ticker_config"] = TickerConfig("10_TICKERS")
+
+        return cls(**d)

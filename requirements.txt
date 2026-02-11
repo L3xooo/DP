@@ -5,3 +5,4 @@ numpy
 pandas
 pytest
 torch
+alpaca-trade-api
