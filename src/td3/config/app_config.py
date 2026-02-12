@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field, asdict
-from typing import Optional, List
+from typing import Optional, List, Any
 from pathlib import Path
 import json
 import torch
@@ -11,13 +11,13 @@ from td3.utils.logger import WithLogger
 @WithLogger()
 @dataclass(frozen=True)
 class AppConfig:
-    iterations: int = 5
-    number_of_episodes: int = 50
-    batch_size: int = 128
+    iterations: int = 1
+    number_of_episodes: int = 200
+    batch_size: int = 512
     learning_start_episode: int | None = 100
     replay_buffer_size: int = 100_000
 
-    ticker_config: TickerConfig = TickerConfig("10_TICKERS")
+    ticker_config: TickerConfig = TickerConfig("ALL_TICKERS")
 
     data_dir: str = "../indicators"
     start_date: str = "2016-05-01"
@@ -34,6 +34,10 @@ class AppConfig:
             "low",
             "unix",
         ]
+    )
+
+    filter_in: List[str] = field(
+        default_factory=lambda: ['adx', 'aroon', 'aroon_down', 'aroon_up', 'atr', 'bb_bbh', 'bb_bbl', 'bb_bbm', 'close', 'cmf', 'ema20', 'ema50', 'kch_high', 'kch_low', 'kch_mid', 'macd_diff', 'mfi', 'pocket_pivot', 'rel_close', 'rel_high', 'rel_low', 'rel_open', 'roc', 'rsi', 'sma', 'squeeze', 'tsi', 'vwap']
     )
 
     hidden_size: int = 512

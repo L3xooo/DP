@@ -5,7 +5,7 @@ from td3.models.td3 import TD3
 from td3.data.data_processor import DataProcessor
 from td3.utils.file_utils import create_experiment_directories, create_directory
 from td3.utils.graph_utils import plot_multi_line_chart, plot_episode_weights
-from td3.utils.logger import LoggerFactory
+from td3.utils.logger import LoggerFactory, log_stock_value
 
 logger = LoggerFactory.create_logger(__name__)
 
@@ -22,9 +22,12 @@ def main():
         end=app_config.end_date,
     )
 
-    df_features = df.drop(columns=app_config.filter_out, level=1)
+    # df_features = df.drop(columns=app_config.filter_out, level=1)
+    df_features = df.loc[:, (slice(None), app_config.filter_in)]
+
     df_prices = df.loc[:, (slice(None), ['close'])]
     data_3d_features, _, tickers, features = dp.to_3d(df_features)
+    print(features)
     data_3d_prices, _, _, _ = dp.to_3d(df_prices)
 
     for iteration in range(app_config.iterations):
@@ -48,20 +51,26 @@ def main():
 
             while True:
                 if done:
-                    plot_episode_weights(episode_metrics.final_weights, app_config.ticker_config.tickers_with_cash, episode, weights_dir + "/run_" + str(iteration))
+                    # plot_episode_weights(episode_metrics.final_weights, app_config.ticker_config.tickers_with_cash, episode, weights_dir + "/run_" + str(iteration))
                     episode_metrics.aggregate()
                     break
 
                 td3_agent.set_episode(episode)
-                action, noisy_logits = td3_agent.select_action(state)
+                action, noisy_logits = td3_agent.select_action(state, temperature=app_config.temperature)
+
+                log_stock_value(logger, tickers, action, "Action Weights")
+                # positive_values = [x for x in action if x is not None and x > 0.01]
+                # formatted_values = [round(float(x), 2) for x in positive_values]
+                # print(f"Values > 0.01: {formatted_values}, Total count: {len(positive_values)}")
 
                 new_state, reward_val, done, trunc, info = env.step(action)
                 env.replay_buffer.add(state, action, reward_val, done, new_state)
                 state = new_state
-                episode_metrics.update(td3_agent.update(env.replay_buffer, batch_size=app_config.batch_size)
+                episode_metrics.update(td3_agent.update(env.replay_buffer, batch_size=app_config.batch_size,
+                                       temperature=app_config.temperature)
                                        .set_basic(float(reward_val), float(env.portfolio_value.curr), env.weights.curr))
 
-        td3_agent.save_model(models_dir, filename=f'td3_model_run_{iteration}.pth')
+        # td3_agent.save_model(models_dir, filename=f'td3_model_run_{iteration}.pth')
 
     plot_multi_line_chart(
         data_series=[[ep.total_reward for ep in run.episodes]

@@ -27,7 +27,7 @@ class PortfolioEnv(gym.Env):
         self.current_step = None
         # From the shape get number of steps, assets and feature dimension
         self.num_steps, self.num_assets, self.feature_dim = self.features.shape
-
+        print(f"steps: {self.num_steps}, assets: {self.num_assets}, feature_dim: {self.feature_dim}")
         self.tickers = tickers
         self.seed_value = None
         # Initialize the Replay Buffer
@@ -166,13 +166,13 @@ class PortfolioEnv(gym.Env):
 
         # Do the changes in portfolio based on the new weights
         self.weights.set_curr(action)
-        log_values_with_color(
-            self.logger,
-            {
-                "Weights": self.weights.curr,
-                "Portfolio Value": self.portfolio_value.curr,
-            },
-        )
+        # log_values_with_color(
+        #     self.logger,
+        #     {
+        #         "Weights": self.weights.curr,
+        #         "Portfolio Value": self.portfolio_value.curr,
+        #     },
+        # )
 
         self.portfolio_cash.set_curr(self.portfolio_value.curr * self.weights.curr[0])
         self.assets_prices.set_curr(self.weights.curr[1:] * self.portfolio_value.curr)

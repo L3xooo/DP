@@ -55,67 +55,83 @@ class DataProcessor:
     # ------------------------------------------------------------------
 
     def load_panel(
-        self,
-        tickers: List[str],
-        filter_cols: Optional[List[str]] = None,
-        join: str = "inner",
-        start: Optional[Union[str, pd.Timestamp]] = None,
-        end: Optional[Union[str, pd.Timestamp]] = None,
+            self,
+            tickers: List[str],
+            filter_cols: Optional[List[str]] = None,
+            join: str = "inner",
+            start: Optional[Union[str, pd.Timestamp]] = None,
+            end: Optional[Union[str, pd.Timestamp]] = None,
     ) -> pd.DataFrame:
-        """
-        Načíta všetky tickery, všetky stĺpce (alebo vybrané), zarovná podľa dátumu
-        a vráti DataFrame s MultiIndex stĺpcami (ticker, feature).
-        """
+
         frames = []
+
         for t in tickers:
             df_t = self.load_single_ticker(t, filter_cols=filter_cols)
+
+            # print(f"{t} shape:", df_t.shape)
+
+            if df_t.shape != (2243, 34):
+                print(f"Skipping {t} shape {df_t.shape}")
+                continue
+
+            if df_t.empty:
+                print(f"WARNING: {t} is empty")
+
             frames.append(df_t)
+
+        print("Loaded frames:", len(frames))
 
         panel_df = pd.concat(frames, axis=1, join=join)
 
+        print("After concat:", panel_df.shape)
+
         if start is not None:
             panel_df = panel_df[panel_df.index >= pd.to_datetime(start)]
+            print("After start filter:", panel_df.shape)
+
         if end is not None:
             panel_df = panel_df[panel_df.index <= pd.to_datetime(end)]
+            print("After end filter:", panel_df.shape)
 
-        # pre istotu zoradíme MultiIndex (ticker, feature)
         panel_df = panel_df.sort_index(axis=1)
+
+        print("Final panel:", panel_df.shape)
 
         return panel_df
 
     # ------------------------------------------------------------------
 
-    def to_3d(
-        self,
-        panel_df: pd.DataFrame,
-    ) -> Tuple[np.ndarray, List[pd.Timestamp], List[str], List[str]]:
-        """
-        Z MultiIndex DataFrame (ticker, feature) spraví 3D numpy array.
+    def to_3d(self, panel_df):
 
-        Výstup:
-          data: shape = (T, N, F)
-          dates: zoznam dátumov (T)
-          tickers: zoznam tickerov (N)
-          features: zoznam feature názvov (F)
-        """
         if not isinstance(panel_df.columns, pd.MultiIndex) or panel_df.columns.nlevels != 2:
-            raise ValueError("panel_df must have MultiIndex columns with levels (ticker, feature)")
+            raise ValueError("panel_df must have MultiIndex columns (ticker, feature)")
 
         tickers = list(panel_df.columns.get_level_values(0).unique())
-        features = list(panel_df.columns.get_level_values(1).unique())
-        dates = list(panel_df.index)
 
+        # --- find common features across ALL tickers ---
+        feature_sets = [set(panel_df[t].columns) for t in tickers]
+        common_features = sorted(set.intersection(*feature_sets))
+
+        if len(common_features) == 0:
+            raise ValueError("No shared features across tickers")
+
+        # filter dataframe to shared features only
+        panel_df = panel_df.loc[:, (slice(None), common_features)]
+
+        dates = list(panel_df.index)
         T = len(dates)
         N = len(tickers)
-        F = len(features)
+        F = len(common_features)
 
         data = np.zeros((T, N, F), dtype=float)
 
-        # naplníme data[:, i, j] pre každý ticker a feature
         for i, t in enumerate(tickers):
-            sub_df = panel_df[t]  # DataFrame s columns = features
-            # zabezpečíme rovnaké poradie features
-            sub_df = sub_df[features]
+            sub_df = panel_df[t][common_features]
+
+            if sub_df.shape[1] != F:
+                raise ValueError(f"{t} feature mismatch {sub_df.shape[1]} vs {F}")
+
             data[:, i, :] = sub_df.values
 
-        return data, dates, tickers, features
+        return data, dates, tickers, common_features
+
