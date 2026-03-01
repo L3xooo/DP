@@ -95,12 +95,10 @@ class PortfolioEnv(gym.Env):
             raise IndexError()
         return self.prices[idx].flatten()
 
-    def _calculate_reward(self, shares_changes: np.ndarray):
-        # transaction_cost = self._calculate_transaction_cost(shares_changes)
-        # risk_cost = self._calculate_risk_cost()
+    def _calculate_reward(self):
         portfolio_value = self._calculate_portfolio_value()
         next_portfolio_value = self._calculate_portfolio_value(self._get_prices(1))
-        return float(((next_portfolio_value - portfolio_value) / (portfolio_value + 1e-12)))
+        return np.log((next_portfolio_value + 1e-12) / (portfolio_value + 1e-12))
 
     def _calculate_risk_cost(self):
         """
@@ -166,21 +164,12 @@ class PortfolioEnv(gym.Env):
 
         # Do the changes in portfolio based on the new weights
         self.weights.set_curr(action)
-        # log_values_with_color(
-        #     self.logger,
-        #     {
-        #         "Weights": self.weights.curr,
-        #         "Portfolio Value": self.portfolio_value.curr,
-        #     },
-        # )
-
         self.portfolio_cash.set_curr(self.portfolio_value.curr * self.weights.curr[0])
         self.assets_prices.set_curr(self.weights.curr[1:] * self.portfolio_value.curr)
 
         # Calculate how many shares per asset with new prices
         self.shares.set_curr(self.assets_prices.curr / self._get_prices())
-        shares_changes = self.shares.curr - self.shares.prev
-        reward = self._calculate_reward(shares_changes)
+        reward = self._calculate_reward()
 
         self.current_step += 1
 

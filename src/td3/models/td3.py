@@ -38,15 +38,11 @@ class TD3:
         self._expl_noise_anneal = int(noise_anneal_episodes)
         self.current_episode = 0
 
-        self.actor = Actor(input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size).to(
-            self.device
-        )
+        self.actor = Actor(input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size).to(self.device)
         self.critic1 = Critic(state_dim, action_dim, hidden_size).to(self.device)
         self.critic2 = Critic(state_dim, action_dim, hidden_size).to(self.device)
 
-        self.target_actor = Actor(
-            input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size
-        ).to(self.device)
+        self.target_actor = Actor(input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size).to(self.device)
         self.target_critic1 = Critic(state_dim, action_dim, hidden_size).to(self.device)
         self.target_critic2 = Critic(state_dim, action_dim, hidden_size).to(self.device)
 
@@ -111,7 +107,8 @@ class TD3:
         return action, noisy_logits
 
     def update(self, replay_buffer, batch_size, temperature=1.0) -> StepMetrics:
-        if replay_buffer.size() < self.learning_starts:
+
+        if replay_buffer.size() < batch_size:
             return StepMetrics()
 
         self.total_it += 1
@@ -131,7 +128,6 @@ class TD3:
 
         with torch.no_grad():
             next_logits = self.target_actor(next_states)
-            # self.logger.info(f"Next logits: {next_logits}")  # Logovanie hodnoty next_logits
 
             next_logits_noisy = add_logit_noise(next_logits, self.policy_noise, self.noise_clip)
 
@@ -140,11 +136,7 @@ class TD3:
             next_q1 = self.target_critic1(next_states, next_actions)
             next_q2 = self.target_critic2(next_states, next_actions)
             next_q = torch.min(next_q1, next_q2)
-            # self.logger.info(f"next Q1: {next_q1}")  # Logovanie target_q
-            # self.logger.info(f"next Q2: {next_q2}")  # Logovanie target_q
-
             target_q = rewards + (1.0 - dones) * self.gamma * next_q
-            # self.logger.info(f"Target Q: {target_q}")  # Logovanie target_q
 
         q1 = self.critic1(states, actions)
         q2 = self.critic2(states, actions)
@@ -160,10 +152,20 @@ class TD3:
         critic2_loss.backward()
         self.critic2_optimizer.step()
 
+        critic1_loss_val = float(critic1_loss.detach().cpu().item())
+        critic2_loss_val = float(critic2_loss.detach().cpu().item())
+        actor_loss_val = None
+
+        q1_mean = float(q1.detach().mean().cpu().item())
+        q2_mean = float(q2.detach().mean().cpu().item())
+
         if self.total_it % 2 == 0:
-            actor_logits = self.actor(states).clamp(-50.0, 50.0)
+            actor_logits = self.actor(states)
             actor_actions = logits_to_weights(actor_logits, temperature=temperature)
-            actor_loss = -self.critic1(states, actor_actions).mean()
+
+            q1_pi = self.critic1(states, actor_actions)
+
+            actor_loss = -q1_pi.mean()
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
@@ -173,7 +175,10 @@ class TD3:
             self._update_target_network(self.target_critic1, self.critic1)
             self._update_target_network(self.target_critic2, self.critic2)
 
-        return StepMetrics()
+            actor_loss_val = float(actor_loss.detach().cpu().item())
+
+        return StepMetrics(actor_loss=actor_loss_val, critic1_loss=critic1_loss_val,
+                           critic2_loss=critic2_loss_val, q1_mean=q1_mean, q2_mean=q2_mean)
 
     def _update_target_network(self, target_network, network):
         for target_param, param in zip(target_network.parameters(), network.parameters()):

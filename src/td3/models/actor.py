@@ -14,11 +14,7 @@ def add_logit_noise(logits: torch.Tensor, noise_std: float, noise_clip: float) -
 
 
 def logits_to_weights(logits: torch.Tensor, temperature: float = 1.0) -> torch.Tensor:
-    # t = max(1e-6, float(temperature))
-    # return torch.softmax(logits / t, dim=-1)
-    # return entmax15(logits)
-    return entmax_bisect(logits, dim=-1, alpha=1.9)
-    # return entmax15(logits / t, dim=-1)
+    return entmax_bisect(logits, dim=-1, alpha=1.6)
 
 class Actor(nn.Module):
     def __init__(self, input_dim: int, action_dim: int, hidden_size: int = 256):
@@ -36,4 +32,3 @@ class Actor(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         return torch.sigmoid(self.out(x))
-        return self.out(x)

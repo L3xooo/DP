@@ -241,7 +241,7 @@ class TestPortfolioReward:
             lambda prices=None: 0.0 if prices is None else 1.0,
         )
 
-        r = env._calculate_reward(shares_changes=np.array([0.0], dtype=np.float32))
+        r = env._calculate_reward()
         assert r == pytest.approx(1.0 / 1e-12, rel=0, abs=1e-6)
 
     @pytest.mark.parametrize(
@@ -265,7 +265,7 @@ class TestPortfolioReward:
 
         monkeypatch.setattr(env, "_calculate_portfolio_value", fake_calc_portfolio_value)
 
-        r = env._calculate_reward(shares_changes=np.array([0.0], dtype=np.float32))
+        r = env._calculate_reward()
 
         assert r == pytest.approx(expected, rel=0, abs=1e-12)
 

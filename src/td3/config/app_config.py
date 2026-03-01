@@ -11,13 +11,13 @@ from td3.utils.logger import WithLogger
 @WithLogger()
 @dataclass(frozen=True)
 class AppConfig:
-    iterations: int = 1
-    number_of_episodes: int = 200
+    iterations: int = 2
+    number_of_episodes: int = 300
     batch_size: int = 512
     learning_start_episode: int | None = 100
     replay_buffer_size: int = 100_000
 
-    ticker_config: TickerConfig = TickerConfig("ALL_TICKERS")
+    ticker_config: TickerConfig = TickerConfig("ANOTHER_10_TICKERS")
 
     data_dir: str = "../indicators"
     start_date: str = "2016-05-01"
@@ -37,7 +37,7 @@ class AppConfig:
     )
 
     filter_in: List[str] = field(
-        default_factory=lambda: ['adx', 'aroon', 'aroon_down', 'aroon_up', 'atr', 'bb_bbh', 'bb_bbl', 'bb_bbm', 'close', 'cmf', 'ema20', 'ema50', 'kch_high', 'kch_low', 'kch_mid', 'macd_diff', 'mfi', 'pocket_pivot', 'rel_close', 'rel_high', 'rel_low', 'rel_open', 'roc', 'rsi', 'sma', 'squeeze', 'tsi', 'vwap']
+        default_factory=lambda: ['adx', 'aroon', 'aroon_down', 'aroon_up', 'atr', 'bb_bbh', 'bb_bbl', 'bb_bbm', 'cmf', 'ema20', 'ema50', 'kch_high', 'kch_low', 'kch_mid', 'macd_diff', 'mfi', 'pocket_pivot', 'rel_close', 'rel_high', 'rel_low', 'rel_open', 'roc', 'rsi', 'sma', 'squeeze', 'tsi', 'vwap']
     )
 
     hidden_size: int = 512

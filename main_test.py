@@ -8,7 +8,7 @@ from td3.utils.date_utils import check_if_later_date
 from td3.utils.file_utils import create_experiment_directories, RunType
 from td3.utils.graph_utils import plot_multi_line_chart
 
-EXPERIMENT_DIR = "simulations/experiment_2026-02-10_10-33-21/"
+EXPERIMENT_DIR = "simulations/train/run_2026-02-15_12-19-00/"
 
 def load_config() -> AppConfig:
     config_path = os.path.join(EXPERIMENT_DIR, "config.json")
@@ -47,7 +47,7 @@ def main():
         end=app_config.end_date,
     )
 
-    df_features = df.drop(columns=app_config.filter_out, level=1)
+    df_features = df.loc[:, (slice(None), app_config.filter_in)]
     dates = df_features.index.unique().to_list()
     df_prices = df.loc[:, (slice(None), ['close'])]
     data_3d_features, _, tickers, features = dp.to_3d(df_features)

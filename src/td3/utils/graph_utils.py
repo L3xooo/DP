@@ -2,20 +2,66 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+
 def plot_multi_line_chart(
     data_series,
     labels,
     title,
-    image_name = "multi_line_chart.png",
+    image_name="multi_line_chart.png",
     save_dir=None,
-    x_label="Episode",
+    x_label="Step",          # default zmenené (keď je to per-update)
     y_label="Value",
     dpi=200,
+    y_scale=None,            # None | "log"
+    percentile_clip=None,    # napr. (1, 99)
+    skip_first=0,            # napr. 1000 ak chceš odseknúť warmup v grafe
+    stride=1,                # downsample (napr. 10)
 ):
     plt.figure(figsize=(10, 5))
 
     for data, label in zip(data_series, labels):
-        plt.plot(data, label=label)
+        # convert + basic cleaning
+        y = np.asarray(data, dtype=float)
+
+        # skip warmup only for plotting
+        if skip_first > 0:
+            y = y[skip_first:]
+
+        # downsample for readability
+        if stride > 1:
+            y = y[::stride]
+
+        # x axis as index
+        x = np.arange(len(y))
+
+        plt.plot(x, y, label=label)
+
+    # percentile zoom (based on ALL plotted values)
+    if percentile_clip is not None:
+        lo_p, hi_p = percentile_clip
+        all_vals = []
+        for data in data_series:
+            yy = np.asarray(data, dtype=float)
+            if skip_first > 0:
+                yy = yy[skip_first:]
+            if stride > 1:
+                yy = yy[::stride]
+            yy = yy[np.isfinite(yy)]
+            if yy.size:
+                all_vals.append(yy)
+        if all_vals:
+            all_vals = np.concatenate(all_vals)
+            lo = np.percentile(all_vals, lo_p)
+            hi = np.percentile(all_vals, hi_p)
+            if np.isfinite(lo) and np.isfinite(hi) and hi > lo:
+                plt.ylim(lo, hi)
+
+    # y-scale
+    if y_scale == "log":
+        plt.yscale("log")
 
     plt.xlabel(x_label)
     plt.ylabel(y_label)
@@ -30,7 +76,6 @@ def plot_multi_line_chart(
 
     plt.show()
     plt.close()
-
 
 def plot_line_chart(
     data,

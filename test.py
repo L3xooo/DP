@@ -19,7 +19,8 @@ def visualize_actor(state_dim: int, action_dim: int, hidden_size: int = 512, dev
 
     # Forward pre graf
     y = actor(x)
-    dot = make_dot(y, params=dict(actor.named_parameters()))
+    dot = make_dot(y, params=dict(actor.named_parameters()), show_attrs=True)
+
     os.makedirs("model_viz", exist_ok=True)
     actor_path = os.path.join("model_viz", "actor_graph")
     dot.format = "png"
@@ -48,10 +49,10 @@ if __name__ == "__main__":
     state_dim = 280
     action_dim = 11
 
-    # device = "cuda" if torch.cuda.is_available() else "cpu"
-    # print(f"Using device: {device}")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using device: {device}")
     #
-    # visualize_actor(state_dim, action_dim, hidden_size=512, device=device)
-    # visualize_critic(state_dim, action_dim, hidden_size=512, device=device)
+    visualize_actor(state_dim, action_dim, hidden_size=512, device=device)
+    visualize_critic(state_dim, action_dim, hidden_size=512, device=device)
 
     print(ALL_TICKERS.split())

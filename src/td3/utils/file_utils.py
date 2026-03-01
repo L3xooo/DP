@@ -39,6 +39,9 @@ def create_experiment_directories(simulation_dir: str = BASE_SIMULATION_DIR,
     weights_dir = os.path.join(experiment_dir, "weights")
     os.makedirs(weights_dir, exist_ok=False)
 
+    with open(os.path.join(experiment_dir, "notes.md"), "w") as f:
+        f.write(f"# {prefix}_{timestamp}")
+
     return experiment_dir, plots_dir, models_dir, weights_dir
 
 def create_directory(path):

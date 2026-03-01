@@ -3,8 +3,9 @@ from td3.environment.portfolio import PortfolioEnv
 from td3.metrics.metrics import ExperimentMetrics
 from td3.models.td3 import TD3
 from td3.data.data_processor import DataProcessor
+from td3.providers.graph_provider import provide_graphs
 from td3.utils.file_utils import create_experiment_directories, create_directory
-from td3.utils.graph_utils import plot_multi_line_chart, plot_episode_weights
+from td3.utils.graph_utils import plot_episode_weights
 from td3.utils.logger import LoggerFactory, log_stock_value
 
 logger = LoggerFactory.create_logger(__name__)
@@ -22,7 +23,6 @@ def main():
         end=app_config.end_date,
     )
 
-    # df_features = df.drop(columns=app_config.filter_out, level=1)
     df_features = df.loc[:, (slice(None), app_config.filter_in)]
 
     df_prices = df.loc[:, (slice(None), ['close'])]
@@ -51,17 +51,14 @@ def main():
 
             while True:
                 if done:
-                    # plot_episode_weights(episode_metrics.final_weights, app_config.ticker_config.tickers_with_cash, episode, weights_dir + "/run_" + str(iteration))
+                    plot_episode_weights(episode_metrics.final_weights, app_config.ticker_config.tickers_with_cash, episode = episode, save_dir= weights_dir + "/run_" + str(iteration))
                     episode_metrics.aggregate()
                     break
 
                 td3_agent.set_episode(episode)
                 action, noisy_logits = td3_agent.select_action(state, temperature=app_config.temperature)
 
-                log_stock_value(logger, tickers, action, "Action Weights")
-                # positive_values = [x for x in action if x is not None and x > 0.01]
-                # formatted_values = [round(float(x), 2) for x in positive_values]
-                # print(f"Values > 0.01: {formatted_values}, Total count: {len(positive_values)}")
+                log_stock_value(logger, app_config.ticker_config.tickers_with_cash, action, "Action Weights", decimals=4, use_color=True)
 
                 new_state, reward_val, done, trunc, info = env.step(action)
                 env.replay_buffer.add(state, action, reward_val, done, new_state)
@@ -70,25 +67,9 @@ def main():
                                        temperature=app_config.temperature)
                                        .set_basic(float(reward_val), float(env.portfolio_value.curr), env.weights.curr))
 
-        # td3_agent.save_model(models_dir, filename=f'td3_model_run_{iteration}.pth')
+        td3_agent.save_model(models_dir, filename=f'td3_model_run_{iteration}.pth')
 
-    plot_multi_line_chart(
-        data_series=[[ep.total_reward for ep in run.episodes]
-        for run in experiment_metrics.runs],
-        labels=[r.run_id for r in experiment_metrics.runs],
-        title="Episode Total Reward per Run",
-        image_name="episode_rewards.png",
-        save_dir=plots_dir,
-        y_label="Total Reward")
-
-    plot_multi_line_chart(
-        data_series=[[ep.final_portfolio_value for ep in run.episodes]
-        for run in experiment_metrics.runs],
-        labels=[r.run_id for r in experiment_metrics.runs],
-        title="Portfolio Value per Run",
-        image_name="portfolio_value.png",
-        save_dir=plots_dir,
-        y_label="Total Portfolio Value")
+    provide_graphs(plots_dir, experiment_metrics)
 
 if __name__ == "__main__":
     main()
