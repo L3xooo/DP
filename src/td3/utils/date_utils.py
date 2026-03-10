@@ -1,4 +1,14 @@
+"""
+Date validation utilities for the TD3 training pipeline.
+
+Provides helper functions for validating and comparing date strings
+used in environment configuration and data loading.
+
+Author: Peter Likavec
+"""
+
 from datetime import datetime
+
 
 def check_if_later_date(date_a: str, date_b: str) -> None:
     """Raise ValueError if date_a (YYYY-MM-DD) is not later than date_b."""

@@ -30,7 +30,6 @@ def log_stock_value(logger, stocks, values, log_name, use_color=False, level="in
         # Decide the color based on the value
         if value == 0:
             continue
-            color = Colors.WHITE  # For zero value, we use white
         elif value > 0:
             color = Colors.GREEN  # Green for positive values
         else:
@@ -79,6 +78,6 @@ class WithLogger:
     """Decorator class that attaches a logger to any class."""
 
     def __call__(self, cls):
-        # Attach logger based on class name
+        """Attach logger based on class name."""
         cls.logger = LoggerFactory.create_logger(cls.__name__)
         return cls

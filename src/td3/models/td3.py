@@ -28,7 +28,6 @@ class TD3:
         device=None,
     ):
         self.device = device
-        self.learning_starts = learning_starts
         self.total_it = 0
         self.policy_noise = 0.2
         self.noise_clip = 0.5
@@ -38,11 +37,15 @@ class TD3:
         self._expl_noise_anneal = int(noise_anneal_episodes)
         self.current_episode = 0
 
-        self.actor = Actor(input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size).to(self.device)
+        self.actor = Actor(input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size).to(
+            self.device
+        )
         self.critic1 = Critic(state_dim, action_dim, hidden_size).to(self.device)
         self.critic2 = Critic(state_dim, action_dim, hidden_size).to(self.device)
 
-        self.target_actor = Actor(input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size).to(self.device)
+        self.target_actor = Actor(
+            input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size
+        ).to(self.device)
         self.target_critic1 = Critic(state_dim, action_dim, hidden_size).to(self.device)
         self.target_critic2 = Critic(state_dim, action_dim, hidden_size).to(self.device)
 
@@ -75,7 +78,6 @@ class TD3:
     def select_action(
         self,
         state,
-        temperature=1.0,
         noise_std=None,
         noise_clip=None,
         use_noise: bool = True,
@@ -102,12 +104,11 @@ class TD3:
 
             noisy_logits = add_logit_noise(logits, noise_std, noise_clip)
 
-        weights = logits_to_weights(noisy_logits, temperature)
+        weights = logits_to_weights(noisy_logits)
         action = weights.squeeze(0).cpu().numpy()
         return action, noisy_logits
 
-    def update(self, replay_buffer, batch_size, temperature=1.0) -> StepMetrics:
-
+    def update(self, replay_buffer, batch_size) -> StepMetrics:
         if replay_buffer.size() < batch_size:
             return StepMetrics()
 
@@ -131,7 +132,7 @@ class TD3:
 
             next_logits_noisy = add_logit_noise(next_logits, self.policy_noise, self.noise_clip)
 
-            next_actions = logits_to_weights(next_logits_noisy, temperature=temperature)
+            next_actions = logits_to_weights(next_logits_noisy)
 
             next_q1 = self.target_critic1(next_states, next_actions)
             next_q2 = self.target_critic2(next_states, next_actions)
@@ -161,7 +162,7 @@ class TD3:
 
         if self.total_it % 2 == 0:
             actor_logits = self.actor(states)
-            actor_actions = logits_to_weights(actor_logits, temperature=temperature)
+            actor_actions = logits_to_weights(actor_logits)
 
             q1_pi = self.critic1(states, actor_actions)
 
@@ -177,8 +178,13 @@ class TD3:
 
             actor_loss_val = float(actor_loss.detach().cpu().item())
 
-        return StepMetrics(actor_loss=actor_loss_val, critic1_loss=critic1_loss_val,
-                           critic2_loss=critic2_loss_val, q1_mean=q1_mean, q2_mean=q2_mean)
+        return StepMetrics(
+            actor_loss=actor_loss_val,
+            critic1_loss=critic1_loss_val,
+            critic2_loss=critic2_loss_val,
+            q1_mean=q1_mean,
+            q2_mean=q2_mean,
+        )
 
     def _update_target_network(self, target_network, network):
         for target_param, param in zip(target_network.parameters(), network.parameters()):

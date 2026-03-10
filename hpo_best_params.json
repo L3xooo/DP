@@ -1,0 +1,12 @@
+{
+  "best_value": 3918905.85,
+  "best_params": {
+    "noise_init": 0.1566011992946023,
+    "noise_final": 0.050364624801615715,
+    "hidden_size": 512,
+    "batch_size": 512,
+    "lr": 0.0005728290344638552,
+    "noise_anneal_episodes": 70
+  },
+  "study_name": "td3_hpo"
+}

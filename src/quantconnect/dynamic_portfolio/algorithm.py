@@ -2,8 +2,8 @@ from AlgorithmImports import *
 import csv, io
 from datetime import datetime
 
-class DynamicPortfolio(QCAlgorithm):
 
+class DynamicPortfolio(QCAlgorithm):
     def __init__(self):
         super().__init__()
         self.last_rebalance_date = None
@@ -12,13 +12,26 @@ class DynamicPortfolio(QCAlgorithm):
         self.tickers = None
 
     def initialize(self):
-        self.set_security_initializer(lambda security: security.set_fee_model(ConstantFeeModel(0, "USD")))
+        self.set_security_initializer(
+            lambda security: security.set_fee_model(ConstantFeeModel(0, "USD"))
+        )
 
         self.set_start_date(2019, 1, 21)
         self.set_end_date(2023, 12, 24)
         self.set_cash(10000)
 
-        self.tickers = ["AAPL","MSFT","AMZN","GOOGL","META","TSLA","NVDA","JPM","JNJ","XOM"]
+        self.tickers = [
+            "AAPL",
+            "MSFT",
+            "AMZN",
+            "GOOGL",
+            "META",
+            "TSLA",
+            "NVDA",
+            "JPM",
+            "JNJ",
+            "XOM",
+        ]
         for t in self.tickers:
             self.add_equity(t, Resolution.DAILY)
 
@@ -47,7 +60,9 @@ class DynamicPortfolio(QCAlgorithm):
             weights = [float(x) for x in row[1:]]
             self.weights_by_date[d] = weights
 
-        self.debug(f"Loaded {key}: days={len(self.weights_by_date)} | headers={self.weights_headers}")
+        self.debug(
+            f"Loaded {key}: days={len(self.weights_by_date)} | headers={self.weights_headers}"
+        )
 
         self.last_rebalance_date = None
 

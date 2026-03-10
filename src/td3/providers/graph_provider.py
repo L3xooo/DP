@@ -3,30 +3,28 @@ from td3.utils.graph_utils import plot_multi_line_chart
 
 def provide_graphs(plots_dir: str, experiment_metrics):
     plot_multi_line_chart(
-        data_series=[[ep.total_reward for ep in run.episodes]
-        for run in experiment_metrics.runs],
+        data_series=[[ep.total_reward for ep in run.episodes] for run in experiment_metrics.runs],
         labels=[r.run_id for r in experiment_metrics.runs],
         title="Episode Total Reward per Run",
         image_name="episode_rewards.png",
         save_dir=plots_dir,
-        y_label="Total Reward")
+        y_label="Total Reward",
+    )
 
     plot_multi_line_chart(
-        data_series=[[ep.final_portfolio_value for ep in run.episodes]
-        for run in experiment_metrics.runs],
+        data_series=[
+            [ep.final_portfolio_value for ep in run.episodes] for run in experiment_metrics.runs
+        ],
         labels=[r.run_id for r in experiment_metrics.runs],
         title="Portfolio Value per Run",
         image_name="portfolio_value.png",
         save_dir=plots_dir,
-        y_label="Total Portfolio Value")
+        y_label="Total Portfolio Value",
+    )
 
     plot_multi_line_chart(
         data_series=[
-            [
-                loss
-                for ep in run.episodes[1:]
-                for loss in ep.actor_loss_all_steps
-            ]
+            [loss for ep in run.episodes[1:] for loss in ep.actor_loss_all_steps]
             for run in experiment_metrics.runs
         ],
         labels=[r.run_id for r in experiment_metrics.runs],
@@ -35,7 +33,6 @@ def provide_graphs(plots_dir: str, experiment_metrics):
         save_dir=plots_dir,
         y_label="Actor Loss",
     )
-
 
     for run in experiment_metrics.runs:
         plot_multi_line_chart(

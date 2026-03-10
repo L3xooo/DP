@@ -6,19 +6,20 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def plot_multi_line_chart(
     data_series,
     labels,
     title,
     image_name="multi_line_chart.png",
     save_dir=None,
-    x_label="Step",          # default zmenené (keď je to per-update)
+    x_label="Step",  # default zmenené (keď je to per-update)
     y_label="Value",
     dpi=200,
-    y_scale=None,            # None | "log"
-    percentile_clip=None,    # napr. (1, 99)
-    skip_first=0,            # napr. 1000 ak chceš odseknúť warmup v grafe
-    stride=1,                # downsample (napr. 10)
+    y_scale=None,  # None | "log"
+    percentile_clip=None,  # napr. (1, 99)
+    skip_first=0,  # napr. 1000 ak chceš odseknúť warmup v grafe
+    stride=1,  # downsample (napr. 10)
 ):
     plt.figure(figsize=(10, 5))
 
@@ -76,6 +77,7 @@ def plot_multi_line_chart(
 
     plt.show()
     plt.close()
+
 
 def plot_line_chart(
     data,

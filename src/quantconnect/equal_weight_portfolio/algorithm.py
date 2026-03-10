@@ -2,7 +2,6 @@ from AlgorithmImports import *
 
 
 class BenchmarkPortfolio(QCAlgorithm):
-
     def __init__(self):
         super().__init__()
         self.invested_once = None
@@ -16,7 +15,18 @@ class BenchmarkPortfolio(QCAlgorithm):
         self.set_end_date(2023, 12, 24)
         self.set_cash(10000)
 
-        self.tickers = ["AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "NVDA", "JPM", "JNJ", "XOM"]
+        self.tickers = [
+            "AAPL",
+            "MSFT",
+            "AMZN",
+            "GOOGL",
+            "META",
+            "TSLA",
+            "NVDA",
+            "JPM",
+            "JNJ",
+            "XOM",
+        ]
 
         for t in self.tickers:
             self.add_equity(t, Resolution.DAILY)
@@ -27,7 +37,10 @@ class BenchmarkPortfolio(QCAlgorithm):
     def on_data(self, data: Slice):
         if self.invested_once:
             return
-        if any(not data.contains_key(self.symbol(t)) or data[self.symbol(t)] is None for t in self.tickers):
+        if any(
+            not data.contains_key(self.symbol(t)) or data[self.symbol(t)] is None
+            for t in self.tickers
+        ):
             return
         for t in self.tickers:
             self.set_holdings(t, self.equal_weight)

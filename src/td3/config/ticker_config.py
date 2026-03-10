@@ -1,7 +1,15 @@
-from __future__ import annotations
+"""
+Ticker universe definitions and configuration for the TD3 training pipeline.
+
+Provides named presets of stock tickers (e.g. 10, 30, or all available symbols)
+and the TickerConfig dataclass used to select and access a ticker universe by name.
+
+Author: Peter Likavec
+"""
 
 from dataclasses import dataclass
 from typing import Dict, List, Literal
+
 
 ALL_TICKERS = """
 A       AMAT    AZO     CAG     CMI     CZR     DXCM    EW      HBAN    IEX     JNUG    LLY     MHK     NEE     ORLY    POOL    RVTY    STT     TPR     VGT     WRB
@@ -51,7 +59,9 @@ AES     APH     BLDR    CFG     CRM     DLR     EOG     FICO    GM      HST     
 """
 
 
-TickerConfigName = Literal["10_TICKERS", "30_TICKERS", "ANOTHER_10_TICKERS", "ALL_TICKERS", "LESS_TICKERS"]
+TickerConfigName = Literal[
+    "10_TICKERS", "30_TICKERS", "ANOTHER_10_TICKERS", "ALL_TICKERS", "LESS_TICKERS"
+]
 
 TICKER_PRESETS: Dict[TickerConfigName, List[str]] = {
     "LESS_TICKERS": LESS_TICKERS.split(),

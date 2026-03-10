@@ -105,7 +105,9 @@ class AlpacaClient:
             return None
 
     # Orders
-    def list_orders(self, status: Literal["open", "closed", "all"] = "open", limit: int = 50) -> list[Order]:
+    def list_orders(
+        self, status: Literal["open", "closed", "all"] = "open", limit: int = 50
+    ) -> list[Order]:
         return list(self._rest.list_orders(status=status, limit=limit))
 
     def submit_order(

@@ -3,8 +3,8 @@ import pytest
 from td3.data.data_processor import DataProcessor
 import numpy as np
 
-def test_data_processor_load_data():
 
+def test_data_processor_load_data():
     dp = DataProcessor(data_dir="./tests/fixtures", file_pattern="{ticker}.csv")
     df = dp.load_panel(
         tickers=["aa", "bb", "cc"],
@@ -20,7 +20,6 @@ def test_data_processor_load_data():
 
 
 def test_data_processor_get_only_specific_column():
-
     dp = DataProcessor(data_dir="./tests/fixtures", file_pattern="{ticker}.csv")
     df = dp.load_panel(
         tickers=["aa", "bb", "cc"],
@@ -32,6 +31,7 @@ def test_data_processor_get_only_specific_column():
 
     assert data_3d_a.shape == (30, 3, 1)
     assert np.all(data_3d_a == 1), "Expected all values in column 'a' to be 1"
+
 
 @pytest.mark.parametrize(
     "start,end,expected_T,expected_value",
