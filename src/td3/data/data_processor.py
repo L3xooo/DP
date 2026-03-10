@@ -112,8 +112,9 @@ class DataProcessor:
         # convert both to 3D arrays (T, N, F)
         data_3d_features, _, tickers, features = self.to_3d(df_features)
         data_3d_prices, _, _, _ = self.to_3d(df_prices)
+        all_dates = df.index.get_level_values(0).unique().strftime('%Y-%m-%d').tolist()
 
-        return data_3d_features, data_3d_prices, tickers, features
+        return data_3d_features, data_3d_prices, tickers, features, all_dates
 
     @staticmethod
     def to_3d(panel_df):

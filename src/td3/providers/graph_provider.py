@@ -1,5 +1,44 @@
-from td3.utils.graph_utils import plot_multi_line_chart
+from typing import List
 
+from td3.metrics.metrics import ExperimentMetrics
+from td3.utils.graph_utils import plot_multi_line_chart, plot_episode_weights
+
+
+def provide_test_graphs(plots_dir: str, weight_dir: str, experiment_metrics: ExperimentMetrics,
+                        model_names: List[str], tickers: List[str]):
+
+    plot_multi_line_chart(
+        data_series=[[step.reward for step in run.episodes[:-1]] for run in experiment_metrics.runs],
+        labels=model_names,
+        title="Cumulative per Run",
+        image_name="episode_rewards.png",
+        save_dir=plots_dir,
+        y_label="Total Reward",
+    )
+
+    plot_multi_line_chart(
+        data_series=[
+            [step.portfolio_value for step in run.episodes[:-1]] for run in experiment_metrics.runs
+        ],
+        labels=model_names,
+        title="Portfolio Value per Run",
+        image_name="portfolio_reward.png",
+        save_dir=plots_dir,
+        y_label="Total Value",
+    )
+
+    for run, name in zip(experiment_metrics.runs, model_names):
+        # Take all episodes except the last one
+        data_series = [step.weights for step in run.episodes[:-1]]
+
+        plot_episode_weights(
+            data_series,
+            tickers,
+            episode=0,
+            save_dir=weight_dir,
+            filename=f"weights_{name}.png",
+            title=f"Weights per Episode - {name}"
+        )
 
 def provide_graphs(plots_dir: str, experiment_metrics):
     plot_multi_line_chart(

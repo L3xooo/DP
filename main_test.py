@@ -1,15 +1,18 @@
 import os
+from typing import List
+
 from td3.config.app_config import AppConfig
 from td3.data.data_processor import DataProcessor
 from td3.environment.portfolio import PortfolioEnv
 from td3.metrics.metrics import ExperimentMetrics
 from td3.models.td3 import TD3
+from td3.providers.graph_provider import provide_test_graphs
 from td3.utils.date_utils import check_if_later_date
 from td3.utils.file_utils import create_experiment_directories, RunType
-from td3.utils.graph_utils import plot_multi_line_chart
+from td3.utils.logger import log_stock_value, LoggerFactory
 
-EXPERIMENT_DIR = "simulations/train/run_2026-02-15_12-19-00/"
-
+EXPERIMENT_DIR = "simulations/train/run_2026-03-10_07-07-56/"
+logger = LoggerFactory.create_logger(__name__)
 
 def load_config() -> AppConfig:
     config_path = os.path.join(EXPERIMENT_DIR, "config.json")
@@ -27,6 +30,42 @@ def get_model_paths():
             paths.append(os.path.join(EXPERIMENT_DIR + "models", filename))
     return names, paths
 
+import os
+from typing import List
+
+def export_weights(
+    experiment_metrics: "ExperimentMetrics",
+    model_names: list,
+    tickers: list,
+    weights_dir: str,
+    dates: List[str],
+) -> None:
+    # Ensure "Cash" exists and separate it from other tickers
+    if "Cash" in tickers:
+        tickers_no_cash = [t for t in tickers if t != "Cash"]
+        sorted_tickers = ["Cash"] + sorted(tickers_no_cash)
+    else:
+        sorted_tickers = sorted(tickers)
+
+    # Map sorted tickers to their original indices
+    ticker_indices = [tickers.index(t) for t in sorted_tickers]
+
+    for run, name in zip(experiment_metrics.runs, model_names):
+        # Take all episodes except the last one
+        data_series = [step.weights for step in run.episodes[:-1]]
+
+        # Corresponding dates for each episode
+        episode_dates = dates[:len(data_series)]
+
+        save_path = os.path.join(weights_dir, f"weights_{name}.csv")
+        with open(save_path, "w") as f:
+            # Header: Date, Cash, then remaining assets alphabetically
+            f.write("Date," + ",".join(sorted_tickers) + "\n")
+
+            # Write each episode with date + weights in proper order
+            for date, weights in zip(episode_dates, data_series):
+                sorted_weights = [weights[i] for i in ticker_indices]
+                f.write(date + "," + ",".join(map(str, sorted_weights)) + "\n")
 
 def main():
     train_config = load_config()
@@ -39,17 +78,12 @@ def main():
     app_config = AppConfig(
         start_date="2019-01-21",
         end_date="2023-01-01",
-        learning_start_episode=None,
         number_of_episodes=1,
     )
 
     check_if_later_date(app_config.start_date, train_config.end_date)
     dp = DataProcessor(data_dir=app_config.data_dir)
-    data_3d_features, data_3d_prices, tickers, features = dp.load_panel(
-        tickers=app_config.ticker_config.tickers,
-        start=app_config.start_date,
-        end=app_config.end_date,
-    )
+    data_3d_features, data_3d_prices, tickers, features, all_dates = dp.load_data(app_config)
 
     for model_path in model_paths:
         env = PortfolioEnv(
@@ -62,7 +96,6 @@ def main():
             state_dim=int(env.observation_space.shape[0]),
             action_dim=env.action_space.shape[0],
             noise_anneal_episodes=app_config.number_of_episodes,
-            learning_starts=app_config.learning_start_episode,
         )
         td3_agent.load_model(model_path)
 
@@ -74,7 +107,8 @@ def main():
             if done:
                 break
 
-            action, noisy_logits = td3_agent.select_action(state, 1, None, None, False)
+            action, noisy_logits = td3_agent.select_action(state, None, None, False)
+
             new_state, reward_val, done, trunc, info = env.step(action)
             state = new_state
             total_reward = (
@@ -82,26 +116,9 @@ def main():
             ) + float(reward_val)
             step_metrics.set_basic(total_reward, env.portfolio_value.curr, action)
 
-    plot_multi_line_chart(
-        data_series=[[step.reward for step in run.episodes] for run in experiment_metrics.runs],
-        labels=model_names,
-        title="Cumulative per Run",
-        image_name="episode_rewards.png",
-        save_dir=plots_dir,
-        y_label="Total Reward",
-    )
-
-    plot_multi_line_chart(
-        data_series=[
-            [step.portfolio_value for step in run.episodes] for run in experiment_metrics.runs
-        ],
-        labels=model_names,
-        title="Portfolio Value per Run",
-        image_name="portfolio_reward.png",
-        save_dir=plots_dir,
-        y_label="Total Value",
-    )
-
+        break
+    # provide_test_graphs(plots_dir, weights_dir, experiment_metrics, model_names, app_config.ticker_config.tickers_with_cash)
+    # export_weights(experiment_metrics, model_names, app_config.ticker_config.tickers_with_cash, weights_dir, all_dates)
 
 if __name__ == "__main__":
     main()

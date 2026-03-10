@@ -18,7 +18,7 @@ def main():
     app_config.to_json(experiment_dir)
 
     dp = DataProcessor(data_dir=app_config.data_dir)
-    data_3d_features, data_3d_prices, tickers, features = dp.load_data(app_config)
+    data_3d_features, data_3d_prices, tickers, features, _ = dp.load_data(app_config)
 
     for iteration in range(app_config.iterations):
         print(f"Starting iteration {iteration + 1} / {app_config.iterations}")
@@ -53,7 +53,7 @@ def main():
                 td3_agent.set_episode(episode)
                 action, noisy_logits = td3_agent.select_action(state)
 
-                # log_stock_value(logger, app_config.ticker_config.tickers_with_cash, action, "Action Weights", decimals=4, use_color=True)
+                log_stock_value(logger, app_config.ticker_config.tickers_with_cash, action, "Action Weights", decimals=4, use_color=False)
 
                 new_state, reward_val, done, trunc, info = env.step(action)
                 env.replay_buffer.add(state, action, reward_val, done, new_state)

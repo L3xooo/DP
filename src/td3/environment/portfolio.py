@@ -5,7 +5,7 @@ import random
 
 from td3.config.app_config import AppConfig
 from td3.replay.replay_buffer import ReplayBuffer
-from td3.utils.logger import WithLogger, log_values_with_color
+from td3.utils.logger import WithLogger, log_values_with_color, log_stock_value
 from td3.utils.prev_curr import PrevCurr
 
 DEFAULT_PORTFOLIO_VALUE = 10000.0
@@ -49,6 +49,7 @@ class PortfolioEnv(gym.Env):
         self.tickers = tickers
         self.seed_value = None
         self.replay_buffer = ReplayBuffer(app_config.replay_buffer_size)
+        self.app_config = app_config
 
         # Coefficients
         self.transaction_coefficient = 0.001
@@ -176,7 +177,13 @@ class PortfolioEnv(gym.Env):
 
     def _step_v2(self, action):
         """Executes one time step within the environment based on the given action."""
-
+        log_stock_value(self.logger, self.app_config.ticker_config.tickers_with_cash, self.weights.curr, "Action Weights", decimals=4,
+                        use_color=False)
+        log_stock_value(self.logger, self.app_config.ticker_config.tickers, self._get_prices(), "Stock Price", decimals=4,
+                        use_color=True)
+        log_stock_value(self.logger, self.app_config.ticker_config.tickers, self.assets_prices.curr, "Asset Price",
+                        decimals=4,
+                        use_color=True)
         # Save the previous values, check if even needed
         self.weights.set_prev_from_curr()
         self.portfolio_value.set_prev_from_curr()
@@ -188,7 +195,7 @@ class PortfolioEnv(gym.Env):
         self.portfolio_value.set_curr(
             self.portfolio_cash.prev + self._get_prices().dot(self.shares.prev)
         )
-        # log_values_with_color(self.logger, {"Portfolio Value": self.portfolio_value.curr})
+        log_values_with_color(self.logger, {"Portfolio Value": self.portfolio_value.curr})
 
         # Do the changes in portfolio based on the new weights
         self.weights.set_curr(action)
