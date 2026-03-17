@@ -29,7 +29,7 @@ def log_stock_value(logger, stocks, values, log_name, use_color=False, level="in
     for stock, value in zip(stocks, values):
         # Decide the color based on the value
         if value == 0:
-            continue
+            color = Colors.WHITE
         elif value > 0:
             color = Colors.GREEN  # Green for positive values
         else:

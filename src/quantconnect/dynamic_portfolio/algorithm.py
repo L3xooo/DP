@@ -1,9 +1,23 @@
+"""
+DynamicPortfolio algorithm module.
+
+Defines DynamicPortfolio, a QuantConnect algorithm that dynamically allocates
+weights to a set of equities based on a CSV file. Positions are rebalanced
+daily according to the weights defined per date.
+
+Author: Peter Likavec
+"""
+
 from AlgorithmImports import *
 import csv, io
 from datetime import datetime
 
 
 class DynamicPortfolio(QCAlgorithm):
+    """
+    A QuantConnect algorithm that allocates portfolio weights dynamically
+    from a CSV file containing daily weights per security.
+    """
     def __init__(self):
         super().__init__()
         self.last_rebalance_date = None
@@ -67,6 +81,11 @@ class DynamicPortfolio(QCAlgorithm):
         self.last_rebalance_date = None
 
     def on_data(self, data: Slice):
+        """
+        Rebalances the portfolio daily according to the weights for the current date.
+        It skips rebalancing if it has already been done for today.
+        The weights are read from the CSV file and are capped between 0 and 1.
+        """
         today = self.time.date()
         if self.last_rebalance_date == today:
             return

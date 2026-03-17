@@ -10,7 +10,6 @@ Author: Peter Likavec
 from dataclasses import dataclass
 from typing import Dict, List, Literal
 
-
 ALL_TICKERS = """
 A       AMAT    AZO     CAG     CMI     CZR     DXCM    EW      HBAN    IEX     JNUG    LLY     MHK     NEE     ORLY    POOL    RVTY    STT     TPR     VGT     WRB
 AAPL        BA      CAH     CMS     D       EA      EXC     GD      HCA     IFF     JPM     LMT     MKC     NEM         PPG     SBAC    STX     TQQQ        WST

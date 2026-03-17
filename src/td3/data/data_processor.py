@@ -73,9 +73,9 @@ class DataProcessor:
             df_t = self.load_single_ticker(t, filter_cols=filter_cols)
 
             # skip tickers with unexpected shape (data quality check)
-            if df_t.shape != (2243, 34):
-                print(f"Skipping {t} shape {df_t.shape}")
-                continue
+            # if df_t.shape != (2243, 34):
+            #     print(f"Skipping {t} shape {df_t.shape}")
+            #     continue
 
             if df_t.empty:
                 print(f"WARNING: {t} is empty")

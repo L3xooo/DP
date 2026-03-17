@@ -125,7 +125,7 @@ def run_training(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n-trials", type=int, default=20)
+    parser.add_argument("--n-trials", type=int, default=40)
     parser.add_argument("--episodes", type=int, default=50)
     parser.add_argument("--metric-window", type=int, default=5)
     parser.add_argument("--seed", type=int, default=None)

@@ -30,9 +30,6 @@ def get_model_paths():
             paths.append(os.path.join(EXPERIMENT_DIR + "models", filename))
     return names, paths
 
-import os
-from typing import List
-
 def export_weights(
     experiment_metrics: "ExperimentMetrics",
     model_names: list,
@@ -40,32 +37,23 @@ def export_weights(
     weights_dir: str,
     dates: List[str],
 ) -> None:
-    # Ensure "Cash" exists and separate it from other tickers
-    if "Cash" in tickers:
-        tickers_no_cash = [t for t in tickers if t != "Cash"]
-        sorted_tickers = ["Cash"] + sorted(tickers_no_cash)
-    else:
-        sorted_tickers = sorted(tickers)
-
-    # Map sorted tickers to their original indices
-    ticker_indices = [tickers.index(t) for t in sorted_tickers]
+    """Export all episode weights for each run directly to CSV."""
 
     for run, name in zip(experiment_metrics.runs, model_names):
-        # Take all episodes except the last one
+        # Each episode's weights
         data_series = [step.weights for step in run.episodes[:-1]]
 
-        # Corresponding dates for each episode
+        # Align dates with episodes
         episode_dates = dates[:len(data_series)]
 
         save_path = os.path.join(weights_dir, f"weights_{name}.csv")
         with open(save_path, "w") as f:
-            # Header: Date, Cash, then remaining assets alphabetically
-            f.write("Date," + ",".join(sorted_tickers) + "\n")
+            # Header: Date + tickers as-is
+            f.write("Date," + ",".join(tickers) + "\n")
 
-            # Write each episode with date + weights in proper order
+            # Write each episode
             for date, weights in zip(episode_dates, data_series):
-                sorted_weights = [weights[i] for i in ticker_indices]
-                f.write(date + "," + ",".join(map(str, sorted_weights)) + "\n")
+                f.write(date + "," + ",".join(map(str, weights)) + "\n")
 
 def main():
     train_config = load_config()
@@ -102,7 +90,9 @@ def main():
         state = env.reset()
         done = False
         run_metrics = experiment_metrics.start_run(model_path)
+        counter = 0
         while True:
+            print(all_dates[counter])
             step_metrics = run_metrics.start_step()
             if done:
                 break
@@ -115,10 +105,10 @@ def main():
                 run_metrics.episodes[-2].reward if len(run_metrics.episodes) > 1 else 0.0
             ) + float(reward_val)
             step_metrics.set_basic(total_reward, env.portfolio_value.curr, action)
+            counter += 1
 
-        break
-    # provide_test_graphs(plots_dir, weights_dir, experiment_metrics, model_names, app_config.ticker_config.tickers_with_cash)
-    # export_weights(experiment_metrics, model_names, app_config.ticker_config.tickers_with_cash, weights_dir, all_dates)
+    provide_test_graphs(plots_dir, weights_dir, experiment_metrics, model_names, app_config.ticker_config.tickers_with_cash)
+    export_weights(experiment_metrics, model_names, ["Cash"] + tickers, weights_dir, all_dates)
 
 if __name__ == "__main__":
     main()

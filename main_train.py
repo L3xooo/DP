@@ -10,8 +10,12 @@ from td3.utils.logger import LoggerFactory, log_stock_value
 
 logger = LoggerFactory.create_logger(__name__)
 
+def main() -> None:
+    """
 
-def main():
+    Returns:
+
+    """
     experiment_metrics = ExperimentMetrics()
     app_config = AppConfig()
     experiment_dir, plots_dir, models_dir, weights_dir = create_experiment_directories()
@@ -52,8 +56,6 @@ def main():
 
                 td3_agent.set_episode(episode)
                 action, noisy_logits = td3_agent.select_action(state)
-
-                log_stock_value(logger, app_config.ticker_config.tickers_with_cash, action, "Action Weights", decimals=4, use_color=False)
 
                 new_state, reward_val, done, trunc, info = env.step(action)
                 env.replay_buffer.add(state, action, reward_val, done, new_state)

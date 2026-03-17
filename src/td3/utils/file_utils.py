@@ -40,7 +40,6 @@ def create_experiment_directories(
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-    # Create base simulations directory if it doesn't exist
     os.makedirs(simulation_dir, exist_ok=True)
 
     # Create train and test simulations_directories if they don't exist

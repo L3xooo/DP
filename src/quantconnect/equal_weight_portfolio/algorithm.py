@@ -1,7 +1,19 @@
+"""
+BenchmarkPortfolio algorithm module.
+
+Defines BenchmarkPortfolio, a QuantConnect algorithm that invests once in a predefined
+set of large-cap equities with equal weights and holds the positions throughout the backtest.
+
+Author: Peter Likavec
+"""
+
 from AlgorithmImports import *
 
 
 class BenchmarkPortfolio(QCAlgorithm):
+    """
+    A simple benchmark portfolio algorithm that invests equally in a set of large-cap equities.
+    """
     def __init__(self):
         super().__init__()
         self.invested_once = None
@@ -35,6 +47,10 @@ class BenchmarkPortfolio(QCAlgorithm):
         self.equal_weight = 1.0 / (len(self.tickers) + 1)
 
     def on_data(self, data: Slice):
+        """
+        Invest once in all tickers with equal weight when data is available.
+        Does nothing if already invested or if any ticker data is missing.
+        """
         if self.invested_once:
             return
         if any(

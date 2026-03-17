@@ -93,9 +93,7 @@ class AppConfig:
     def __post_init__(self):
         """
         Set the compute device after initialization.
-
-        Defaults to CUDA if available, otherwise CPU.
-        Skips detection if device was explicitly set.
+        Defaults to CUDA if available, otherwise CPU. Skips detection if device was explicitly set.
         """
         if self.device is not None:
             return
@@ -112,8 +110,7 @@ class AppConfig:
         """
         Serialize the config to a JSON file.
         Args:
-            out_dir: Directory path where config.json will be written.
-                     Created if it does not exist.
+            out_dir: Directory path where config.json will be written. Created if it does not exist.
         Returns:
             None
         """

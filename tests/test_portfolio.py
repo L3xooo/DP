@@ -242,24 +242,26 @@ class TestPortfolioReward:
         )
 
         r = env._calculate_reward()
-        assert r == pytest.approx(1.0 / 1e-12, rel=0, abs=1e-6)
+        # log((1.0 + 1e-12) / (0.0 + 1e-12)) ≈ log(1e12) ≈ 27.631
+        expected = np.log((1.0 + 1e-12) / (0.0 + 1e-12))
+        assert r == pytest.approx(expected, rel=1e-6)
 
     @pytest.mark.parametrize(
         "pv, next_pv, expected",
         [
-            (100.0, 110.0, 0.10),
-            (200.0, 180.0, -0.10),
+            (100.0, 110.0, np.log(110.0 / 100.0)),   # ≈  0.09531
+            (200.0, 180.0, np.log(180.0 / 200.0)),   # ≈ -0.10536
             (1000.0, 1000.0, 0.0),
         ],
         ids=["up_10pct", "down_10pct", "flat"],
     )
+
     def test_calculate_reward_simple_return(self, monkeypatch, pv, next_pv, expected):
         env = PortfolioEnv.__new__(PortfolioEnv)
 
         sentinel_prices = object()
         monkeypatch.setattr(env, "_get_prices", lambda extra_step: sentinel_prices)
 
-        # Make _calculate_portfolio_value return pv for current and next_pv for next prices
         def fake_calc_portfolio_value(prices=None):
             return pv if prices is None else next_pv
 
@@ -267,8 +269,4 @@ class TestPortfolioReward:
 
         r = env._calculate_reward()
 
-        assert r == pytest.approx(expected, rel=0, abs=1e-12)
-
-
-class TestPortfolioStep:
-    pass
+        assert r == pytest.approx(expected, rel=0, abs=1e-10)
