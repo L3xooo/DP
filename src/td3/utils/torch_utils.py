@@ -16,7 +16,14 @@ from td3.models.critic import Critic
 
 
 def count_params(model: torch.nn.Module) -> int:
-    """Returns the number of trainable parameters in a model."""
+    """
+    Returns the number of trainable parameters in a model.
+    Args:
+        model: A PyTorch model instance.
+
+    Returns:
+        The total number of trainable parameters in the model.
+    """
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
@@ -45,9 +52,6 @@ def export_actor(
         opset_version=17,
     )
 
-    print(f"Saved {output_path}")
-
-
 def export_critic(
     state_dim: int = 280,
     action_dim: int = 11,
@@ -73,8 +77,6 @@ def export_critic(
         output_names=["q_value"],
         opset_version=17,
     )
-
-    print(f"Saved {output_path}")
 
 
 if __name__ == "__main__":

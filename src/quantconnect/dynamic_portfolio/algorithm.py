@@ -18,6 +18,7 @@ class DynamicPortfolio(QCAlgorithm):
     A QuantConnect algorithm that allocates portfolio weights dynamically
     from a CSV file containing daily weights per security.
     """
+
     def __init__(self):
         super().__init__()
         self.last_rebalance_date = None

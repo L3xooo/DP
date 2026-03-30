@@ -189,8 +189,6 @@ class TestPortfolioReset:
         )
 
         env.current_step = 3
-        env.portfolio_value_history = [111.0, 222.0]
-        env.portfolio_weights_history = [np.ones(N + 1, dtype=np.float32)]
 
         env.portfolio_value = PrevCurr(prev=1.0, curr=2.0)
         env.portfolio_cash = PrevCurr(prev=3.0, curr=4.0)
@@ -223,10 +221,6 @@ class TestPortfolioReset:
         assert env.portfolio_value.curr == DEFAULT_PORTFOLIO_VALUE
         assert env.portfolio_cash.curr == DEFAULT_PORTFOLIO_VALUE
 
-        assert env.portfolio_value_history == [DEFAULT_PORTFOLIO_VALUE]
-        assert len(env.portfolio_weights_history) == 1
-        np.testing.assert_array_equal(env.portfolio_weights_history[0], env.weights.curr)
-
         expected_obs = features[0].flatten().astype(np.float32)
         np.testing.assert_allclose(obs, expected_obs)
 
@@ -249,13 +243,12 @@ class TestPortfolioReward:
     @pytest.mark.parametrize(
         "pv, next_pv, expected",
         [
-            (100.0, 110.0, np.log(110.0 / 100.0)),   # ≈  0.09531
-            (200.0, 180.0, np.log(180.0 / 200.0)),   # ≈ -0.10536
+            (100.0, 110.0, np.log(110.0 / 100.0)),  # ≈  0.09531
+            (200.0, 180.0, np.log(180.0 / 200.0)),  # ≈ -0.10536
             (1000.0, 1000.0, 0.0),
         ],
         ids=["up_10pct", "down_10pct", "flat"],
     )
-
     def test_calculate_reward_simple_return(self, monkeypatch, pv, next_pv, expected):
         env = PortfolioEnv.__new__(PortfolioEnv)
 

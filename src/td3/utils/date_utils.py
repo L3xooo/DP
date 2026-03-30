@@ -10,10 +10,20 @@ Author: Peter Likavec
 from datetime import datetime
 
 
-def check_if_later_date(date_a: str, date_b: str) -> None:
-    """Raise ValueError if date_a (YYYY-MM-DD) is not later than date_b."""
-    a = datetime.strptime(date_a, "%Y-%m-%d").date()
-    b = datetime.strptime(date_b, "%Y-%m-%d").date()
+def check_if_later_date(sooner_date: str, later_date: str) -> None:
+    """Validates that later_date is strictly later than sooner_date.
 
-    if a <= b:
-        raise ValueError
+    Args:
+        sooner_date: The earlier of the two dates, in YYYY-MM-DD format.
+        later_date: The date that must be strictly later than sooner_date, in YYYY-MM-DD format.
+
+    Raises:
+        ValueError: If later_date is not strictly later than sooner_date.
+    """
+    a = datetime.strptime(sooner_date, "%Y-%m-%d").date()
+    b = datetime.strptime(later_date, "%Y-%m-%d").date()
+
+    if b <= a:
+        raise ValueError(
+            f"later_date ({later_date}) must be strictly later than sooner_date ({sooner_date})."
+        )

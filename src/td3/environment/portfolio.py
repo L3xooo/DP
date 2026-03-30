@@ -1,3 +1,9 @@
+"""
+A portfolio management environment compatible with the OpenAI Gymnasium interface.
+
+Author: Peter Likavec
+"""
+
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -5,10 +11,11 @@ import random
 
 from td3.config.app_config import AppConfig
 from td3.replay.replay_buffer import ReplayBuffer
-from td3.utils.logger import WithLogger, log_values_with_color, log_stock_value
+from td3.utils.logs.logger import WithLogger
 from td3.utils.prev_curr import PrevCurr
 
 DEFAULT_PORTFOLIO_VALUE = 10000.0
+
 
 @WithLogger()
 class PortfolioEnv(gym.Env):
@@ -53,10 +60,6 @@ class PortfolioEnv(gym.Env):
         # Coefficients
         self.transaction_coefficient = 0.001
         self.risk_aversion_coefficient = 0.005
-
-        # Historical values
-        self.portfolio_value_history = []
-        self.portfolio_weights_history = []
 
         self.features = features.astype(np.float32)
         self.prices = prices.astype(np.float32)
@@ -120,47 +123,31 @@ class PortfolioEnv(gym.Env):
         return self.prices[idx].flatten()
 
     def _calculate_reward(self):
-        """Calculates the reward as the log return of the portfolio value from the current step to the next step."""
+        """
+        Computes the reward for the current step.
+
+        Returns:
+            Float reward value calculated as the log return of the portfolio value from the current step to the next step.
+        """
+
         portfolio_value = self._calculate_portfolio_value()
         next_portfolio_value = self._calculate_portfolio_value(self._get_prices(1))
         return np.log((next_portfolio_value + 1e-12) / (portfolio_value + 1e-12))
 
-    # def _calculate_risk_cost(self):
-    #     """
-    #     Computes risk cost.
-    #     Formula: β × σ²_t
-    #     """
-    #     return self.risk_aversion_coefficient * self._calculate_portfolio_variance()
-
-    # def _calculate_portfolio_variance(self, window: int = 20) -> float:
-    #     """
-    #     Computes portfolio variance σ²_t over last `window` returns.
-    #     Formula: σ²_t = mean( (r_i - μ)² ), where r_i = (P_i - P_{i-1}) / P_{i-1}
-    #     """
-    #
-    #     if len(self.portfolio_value_history) < window + 1:
-    #         return 0.0
-    #     recent = np.array(self.portfolio_value_history[-(window + 1) :])
-    #     returns = (recent[1:] - recent[:-1]) / recent[:-1]
-    #     return float(np.mean((returns - returns.mean()) ** 2))
-
-    # def _calculate_transaction_cost(self, shares_changes: np.ndarray):
-    #     """
-    #     Calculate the transaction cost for the given shares changes.
-    #     Formula: cᵗʳᵃⁿₜ = ξ × (pₜᵀ · |kₜ|)
-    #     """
-    #     return self.transaction_coefficient * np.dot(self._get_prices(), np.abs(shares_changes))
-
     def reset(self, seed=None, options=None):
-        """Resets the environment to the initial state."""
+        """
+        Reset the environment to an initial state and return the initial observation.
+
+        Args:
+            seed: Optional random seed for reproducibility.
+            options: Optional dictionary of additional reset options (not used in this implementation).
+        """
+
         self._get_seed(seed)
         self.current_step = 0
         w0 = np.zeros(self.num_assets + 1, dtype=np.float32)
         w0[0] = 1.0
         zeros_assets = np.zeros(self.num_assets, dtype=np.float32)
-
-        self.portfolio_value_history = [DEFAULT_PORTFOLIO_VALUE]
-        self.portfolio_weights_history = [w0]
 
         self.portfolio_value = PrevCurr(prev=float(0), curr=float(DEFAULT_PORTFOLIO_VALUE))
         self.portfolio_cash = PrevCurr(prev=float(0), curr=float(DEFAULT_PORTFOLIO_VALUE))

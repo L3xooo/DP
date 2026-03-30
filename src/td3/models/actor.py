@@ -1,23 +1,23 @@
+"""
+Actor network module for TD3 reinforcement learning agent.
+
+Author: Peter Likavec
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from entmax import entmax15, entmax_bisect
-
-
-def add_logit_noise(logits: torch.Tensor, noise_std: float, noise_clip: float) -> torch.Tensor:
-    if noise_std and noise_std > 0:
-        noise = torch.randn_like(logits) * noise_std
-        noise = noise.clamp(-noise_clip, noise_clip)
-        return logits + noise
-    return logits
-
-
-def logits_to_weights(logits: torch.Tensor) -> torch.Tensor:
-    return entmax_bisect(logits, dim=-1, alpha=1.6)
 
 
 class Actor(nn.Module):
+    """
+    Actor network for TD3, mapping states to action probabilities.
+
+    The network consists of three fully connected layers with ReLU activations.
+    Used as part of the TD3 (Twin Delayed Deep Deterministic Policy Gradient) algorithm.
+    """
+
     def __init__(self, input_dim: int, action_dim: int, hidden_size: int = 256):
         super(Actor, self).__init__()
         self.input_dim = input_dim
@@ -26,6 +26,16 @@ class Actor(nn.Module):
         self.out = nn.Linear(hidden_size, action_dim)
 
     def forward(self, state: Tensor) -> Tensor:
+        """
+        Perform a forward pass through the Actor network.
+
+        Args:
+            state: Input state tensor of shape
+
+        Returns:
+             Action probabilities of shape (batch_size, action_dim), produced by applying
+             a sigmoid activation to the output layer.
+        """
         if state.dim() > 2:
             x = state.view(state.size(0), -1)
         else:

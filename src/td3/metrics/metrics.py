@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 import numpy as np
 
-from td3.utils.logger import WithLogger
+from td3.utils.logs.logger import WithLogger
 
 
 @dataclass

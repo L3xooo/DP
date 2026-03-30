@@ -14,14 +14,9 @@ class Critic(nn.Module):
 
     The network consists of three fully connected layers with ReLU activations.
     Used as part of the TD3 (Twin Delayed Deep Deterministic Policy Gradient) algorithm.
-
-    Args:
-        state_dim (int): Dimensionality of the input state space.
-        action_dim (int): Dimensionality of the action space.
-        hidden_size (int): Number of neurons in each hidden layer. Defaults to 64.
     """
 
-    def __init__(self, state_dim, action_dim, hidden_size=64):
+    def __init__(self, state_dim: int, action_dim: int, hidden_size: int = 64):
         super(Critic, self).__init__()
         self.fc1 = nn.Linear(state_dim + action_dim, hidden_size)
         self.fc2 = nn.Linear(hidden_size, hidden_size)

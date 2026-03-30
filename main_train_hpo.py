@@ -11,7 +11,7 @@ from td3.metrics.metrics import EpisodeMetrics, ExperimentMetrics
 from td3.models.td3 import TD3
 from td3.data.data_processor import DataProcessor
 from td3.utils.file_utils import create_experiment_directories, create_directory
-from td3.utils.logger import LoggerFactory, log_stock_value
+from td3.utils.logs.logger import LoggerFactory, log_stock_value
 
 logger = LoggerFactory.create_logger(__name__)
 

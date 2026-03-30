@@ -7,7 +7,7 @@ logging formatter that applies ANSI colors based on log level.
 Author: Peter Likavec
 """
 
-from td3.utils.colors import Colors
+from td3.utils.logs.colors import Colors
 import logging
 
 

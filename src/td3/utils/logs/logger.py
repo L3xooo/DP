@@ -1,8 +1,8 @@
 import logging
 import sys
 
-from td3.utils.colors import Colors
-from td3.utils.formater import format_number_value, ColoredFormatter
+from td3.utils.logs.colors import Colors
+from td3.utils.logs.formater import format_number_value, ColoredFormatter
 
 
 def log_values_with_color(logger, values: dict, use_color=False, level="info", log_name=None):
@@ -65,11 +65,11 @@ class LoggerFactory:
         console_handler.setFormatter(ColoredFormatter())
         # File handler without colors (plain text)
         file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        file_handler = logging.FileHandler(LoggerFactory.LOG_FILE)
-        file_handler.setFormatter(file_formatter)
+        # file_handler = logging.FileHandler(LoggerFactory.LOG_FILE)
+        # file_handler.setFormatter(file_formatter)
 
         logger.addHandler(console_handler)
-        logger.addHandler(file_handler)
+        # logger.addHandler(file_handler)
 
         return logger
 

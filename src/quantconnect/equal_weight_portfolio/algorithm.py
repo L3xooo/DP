@@ -14,6 +14,7 @@ class BenchmarkPortfolio(QCAlgorithm):
     """
     A simple benchmark portfolio algorithm that invests equally in a set of large-cap equities.
     """
+
     def __init__(self):
         super().__init__()
         self.invested_once = None

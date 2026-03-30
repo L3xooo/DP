@@ -1,5 +1,5 @@
 """
-Experiment directory management utilities for the TD3 training pipeline.
+Experiment directory management utilities.
 
 Provides helpers for creating timestamped experiment directories with
 standardized subdirectories for models, weights, and plots.
@@ -31,35 +31,29 @@ def create_experiment_directories(
     run_type: RunType = RunType.TRAIN,
 ):
     """
-    Create a timestamped experiment directory with standard subdirectories.
+    Creates plots/, models/, and weights/ subdirectories inside a new timestamped folder under
+    simulations/train or simulations/test.
 
-    Creates plots/, models/, and weights/ subdirectories inside a new
-    timestamped folder under simulations/train or simulations/test.
-    Also initializes an empty notes.md file in the experiment root.
+    Args:
+        simulation_dir: Base directory for simulations (default: "simulations").
+        prefix: Prefix for the experiment directory name (default: "run").
+        run_type: Type of run, either RunType.TRAIN or RunType.TEST (default: RunType.TRAIN).
+    Returns:
+        A tuple containing the paths to the experiment directory, plots directory,
+        models directory, and weights directory.
     """
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-    os.makedirs(simulation_dir, exist_ok=True)
+    run_type_dir = "train" if run_type == RunType.TRAIN else "test"
+    experiment_dir = os.path.join(simulation_dir, run_type_dir, f"{prefix}_{timestamp}")
 
-    # Create train and test simulations_directories if they don't exist
-    os.makedirs(os.path.join(simulation_dir, "train"), exist_ok=True)
-    os.makedirs(os.path.join(simulation_dir, "test"), exist_ok=True)
-
-    simulation_dir = os.path.join(simulation_dir, "train" if run_type == RunType.TRAIN else "test")
-
-    # Create a new experiment directory with timestamp
-    experiment_dir = os.path.join(simulation_dir, f"{prefix}_{timestamp}")
-    os.makedirs(experiment_dir, exist_ok=False)
-
-    plots_dir = os.path.join(experiment_dir, "plots")
-    os.makedirs(plots_dir, exist_ok=False)
-
-    models_dir = os.path.join(experiment_dir, "models")
-    os.makedirs(models_dir, exist_ok=False)
-
-    weights_dir = os.path.join(experiment_dir, "weights")
-    os.makedirs(weights_dir, exist_ok=False)
+    sub_dirs = ["plots", "models", "weights"]
+    plots_dir, models_dir, weights_dir = [
+        os.makedirs(os.path.join(experiment_dir, d), exist_ok=True)
+        or os.path.join(experiment_dir, d)
+        for d in sub_dirs
+    ]
 
     with open(os.path.join(experiment_dir, "notes.md"), "w") as f:
         f.write(f"# {prefix}_{timestamp}")
@@ -67,7 +61,15 @@ def create_experiment_directories(
     return experiment_dir, plots_dir, models_dir, weights_dir
 
 
-def create_directory(path):
-    """Create a directory at the given path if it does not already exist."""
+def create_directory(path: str) -> str:
+    """
+    Creates a directory at the specified path if it does not already exist.
+
+    Args:
+        path: The directory path to create.
+
+    Returns:
+        The path that was created or already exists.
+    """
     os.makedirs(path, exist_ok=True)
     return path

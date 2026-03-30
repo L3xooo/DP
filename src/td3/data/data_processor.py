@@ -9,13 +9,16 @@ Author: Peter Likavec
 """
 
 import os
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Tuple, Any
 
 import pandas as pd
 import numpy as np
+from numpy import dtype, ndarray
 
 
 class DataProcessor:
+    """Utility class for loading and preprocessing stock data from CSV files."""
+
     def __init__(
         self,
         data_dir: str,
@@ -27,15 +30,32 @@ class DataProcessor:
         self.file_pattern = file_pattern
 
     def _file_path(self, ticker: str) -> str:
-        """Builds a full file path for a given ticker."""
+        """
+        Builds a full file path for a given ticker.
+
+        Args:
+            ticker: The stock ticker symbol to build the file path for.
+
+        Returns:
+            Name of the CSV file corresponding to the ticker, constructed using the file pattern.
+        """
         return os.path.join(self.data_dir, self.file_pattern.format(ticker=ticker))
 
-    def load_single_ticker(
+    def _load_single_ticker(
         self,
         ticker: str,
         filter_cols: Optional[List[str]] = None,
     ) -> pd.DataFrame:
-        """Loads CSV for a single ticker and returns a MultiIndex DataFrame."""
+        """
+        Loads a single ticker's CSV file into a DataFrame, optionally filtering out unwanted columns.
+
+        Args:
+            ticker: Name of the ticker to load.
+            filter_cols: Columns to drop from the DataFrame after loading. If None, no columns are dropped.
+
+        Returns:
+            DataFrame containing the ticker's data, indexed by date, with columns wrapped in a MultiIndex (ticker, feature).
+        """
 
         path = self._file_path(ticker)
         if not os.path.exists(path):
@@ -49,7 +69,6 @@ class DataProcessor:
         if filter_cols is not None:
             missing = [c for c in filter_cols if c not in df.columns]
             if missing:
-                # raise early if any requested column doesn't exist
                 raise ValueError(f"Columns not found in {ticker}: {missing}")
             df = df.drop(columns=filter_cols)
 
@@ -65,39 +84,50 @@ class DataProcessor:
         start: Optional[Union[str, pd.Timestamp]] = None,
         end: Optional[Union[str, pd.Timestamp]] = None,
     ) -> pd.DataFrame:
-        """Loads multiple tickers and concatenates them into a single panel DataFrame."""
+        """
+        Loads multiple tickers and concatenates them into a single panel DataFrame with MultiIndex columns.
+
+        Args:
+            tickers: List of ticker symbols to load.
+            filter_cols: Columns to drop from each ticker's DataFrame after loading. If None, no columns are dropped.
+            join: How to handle non-overlapping dates across tickers when concatenating.
+            start: Optional start date to slice the panel DataFrame after concatenation.
+            end: Optional end date to slice the panel DataFrame after concatenation.
+
+        Returns:
+            A DataFrame indexed by date, with MultiIndex columns (ticker, feature), containing the concatenated data for all tickers.
+        """
 
         frames = []
 
         for t in tickers:
-            df_t = self.load_single_ticker(t, filter_cols=filter_cols)
-
-            # skip tickers with unexpected shape (data quality check)
-            # if df_t.shape != (2243, 34):
-            #     print(f"Skipping {t} shape {df_t.shape}")
-            #     continue
-
-            if df_t.empty:
-                print(f"WARNING: {t} is empty")
-
-            frames.append(df_t)
+            frames.append(self._load_single_ticker(t, filter_cols=filter_cols))
 
         # concatenate all ticker DataFrames side by side (MultiIndex columns)
         panel_df = pd.concat(frames, axis=1, join=join)
 
         # optionally slice by date range
-        if start is not None:
-            panel_df = panel_df[panel_df.index >= pd.to_datetime(start)]
-
-        if end is not None:
-            panel_df = panel_df[panel_df.index <= pd.to_datetime(end)]
+        panel_df = panel_df[
+            (panel_df.index >= pd.to_datetime(start) if start is not None else True)
+            & (panel_df.index <= pd.to_datetime(end) if end is not None else True)
+            ]
 
         # sort columns alphabetically by (ticker, feature)
         panel_df = panel_df.sort_index(axis=1)
         return panel_df
 
-    def load_data(self, app_config) -> tuple:
-        """Loads panel data and converts it into 3D arrays for features and prices."""
+    def load_data(self, app_config) -> Tuple[ndarray[tuple[int, int, int], dtype[Any]], ndarray[tuple[int, int, int], dtype[Any]], list[Any], list[Any], list[str]]:
+        """
+        Load and preprocess data according to the provided application configuration,
+        returning 3D numpy arrays for features and prices, along with metadata.
+
+        Args:
+            app_config: The application configuration object containing ticker selection, date range, and feature filtering information.
+
+        Returns:
+            Tuple containing the 3D numpy array of features (T, N, F), the 3D numpy array of prices (T, N, 1),
+            the list of tickers, the list of features, and the list of all dates in the panel.
+        """
 
         df = self.load_panel(
             tickers=app_config.ticker_config.tickers,
@@ -117,8 +147,21 @@ class DataProcessor:
         return data_3d_features, data_3d_prices, tickers, features, all_dates
 
     @staticmethod
-    def to_3d(panel_df):
-        """Converts a 2D panel DataFrame into a 3D numpy array (T, N, F)."""
+    def to_3d(panel_df: pd.DataFrame) -> Tuple[ndarray[tuple[int, int, int], dtype[Any]], list[str], list[str], list[str]]:
+        """
+        Converts a panel DataFrame with MultiIndex columns (ticker, feature) into a 3D numpy array.
+
+        The resulting array has shape (T, N, F) where:
+        - T = number of time steps (dates)
+        - N = number of tickers
+        - F = number of features
+
+        Args:
+            panel_df: DataFrame with MultiIndex columns (ticker, feature) and datetime index. Must have the same features for all tickers.
+
+        Returns:
+            A tuple containing the 3D numpy array of shape (T, N, F), the list of dates, the list of tickers, and the list of features.
+        """
 
         if not isinstance(panel_df.columns, pd.MultiIndex) or panel_df.columns.nlevels != 2:
             raise ValueError("panel_df must have MultiIndex columns (ticker, feature)")

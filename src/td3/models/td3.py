@@ -1,18 +1,34 @@
+"""TD3 agent implementation for continuous portfolio-action control.
+
+This module defines a Twin Delayed DDPG (TD3) agent composed of one actor,
+two critics, and their target networks. The actor outputs action logits that
+are transformed to portfolio weights, while critics estimate Q-values for
+state-action pairs.
+"""
+
 import torch
 from torch import optim
 import torch.nn as nn
 import numpy as np
 
 from td3.metrics.metrics import StepMetrics
-from td3.models.actor import Actor, add_logit_noise, logits_to_weights
+from td3.models.actor import Actor
+from td3.utils.logits_utils import add_logit_noise, logits_to_weights
 from td3.models.critic import Critic
 import os
 
-from td3.utils.logger import WithLogger
+from td3.utils.logs.logger import WithLogger
 
 
 @WithLogger()
 class TD3:
+    """Twin Delayed DDPG agent with target policy smoothing.
+
+    The agent maintains one online actor, two online critics, and mirrored
+    target networks. Actions are represented as logits and converted to
+    portfolio weights before being evaluated by critics.
+    """
+
     def __init__(
         self,
         state_dim,
@@ -24,9 +40,22 @@ class TD3:
         noise_init=0.3,
         noise_final=0.05,
         noise_anneal_episodes=500,
-        learning_starts=1000,
         device=None,
     ):
+        """Initialize TD3 networks, optimizers, and exploration schedule.
+
+        Args:
+            state_dim: Input state dimensionality used by actor and critics.
+            action_dim: Number of action logits produced by the actor.
+            hidden_size: Hidden layer width for actor and critic networks.
+            gamma: Discount factor for Bellman targets.
+            tau: Polyak averaging coefficient for target updates.
+            lr: Learning rate for actor and critic optimizers.
+            noise_init: Initial exploration noise standard deviation.
+            noise_final: Final exploration noise standard deviation.
+            noise_anneal_episodes: Number of episodes for linear noise annealing.
+            device: Torch device where tensors and modules are allocated.
+        """
         self.device = device
         self.total_it = 0
         self.policy_noise = 0.2
@@ -63,6 +92,11 @@ class TD3:
         self.tau = tau
 
     def set_episode(self, episode_index: int):
+        """Update current episode and anneal exploration noise.
+
+        Args:
+            episode_index: Zero-based episode index used for linear annealing.
+        """
         self.current_episode = int(episode_index)
 
         if self._expl_noise_anneal <= 0:
@@ -82,6 +116,19 @@ class TD3:
         noise_clip=None,
         use_noise: bool = True,
     ):
+        """Infer an action from state, optionally with exploration noise.
+
+        Args:
+            state: Single state vector or batch-compatible state array.
+            noise_std: Optional override for noise standard deviation.
+            noise_clip: Optional override for absolute noise clipping.
+            use_noise: Whether to apply noise to actor logits.
+
+        Returns:
+            tuple[np.ndarray, torch.Tensor]:
+                - Action weights as a NumPy array for a single sample.
+                - Noisy logits tensor used to compute the returned action.
+        """
         # state can be 1D (single timestep) or already batched
         if not isinstance(state, (np.ndarray,)):
             state = np.array(state, dtype=np.float32)
@@ -109,6 +156,17 @@ class TD3:
         return action, noisy_logits
 
     def update(self, replay_buffer, batch_size) -> StepMetrics:
+        """Run one TD3 optimization step from replay memory.
+
+        Args:
+            replay_buffer: Buffer that provides `size()` and `sample_batch()`.
+            batch_size: Number of transitions to sample for the update.
+
+        Returns:
+            StepMetrics: Loss and Q-value diagnostics for the step. If the
+                replay buffer has fewer than `batch_size` entries, returns an
+                empty/default `StepMetrics` instance.
+        """
         if replay_buffer.size() < batch_size:
             return StepMetrics()
 
@@ -187,10 +245,22 @@ class TD3:
         )
 
     def _update_target_network(self, target_network, network):
+        """Apply Polyak averaging from online network to target network.
+
+        Args:
+            target_network: Target module to update in-place.
+            network: Online module providing current parameter values.
+        """
         for target_param, param in zip(target_network.parameters(), network.parameters()):
             target_param.data.copy_(self.tau * param.data + (1.0 - self.tau) * target_param.data)
 
     def save_model(self, directory, filename='td3_model.pth'):
+        """Save actor and critic weights to a checkpoint file.
+
+        Args:
+            directory: Output directory where checkpoint is written.
+            filename: Checkpoint filename. Defaults to ``td3_model.pth``.
+        """
         path = os.path.join(directory, filename)
         torch.save(
             {
@@ -202,6 +272,11 @@ class TD3:
         )
 
     def load_model(self, filename='td3_model.pth'):
+        """Load actor and critic weights from a checkpoint file.
+
+        Args:
+            filename: Path to checkpoint file. Defaults to ``td3_model.pth``.
+        """
         checkpoint = torch.load(filename)
         self.actor.load_state_dict(checkpoint['actor_state_dict'])
         self.critic1.load_state_dict(checkpoint['critic1_state_dict'])
