@@ -34,7 +34,7 @@ class AppConfig:
     batch_size: int = 512
     replay_buffer_size: int = 100_000
 
-    ticker_config: TickerConfig = TickerConfig("RANDOM_TICKERS")
+    ticker_config: TickerConfig = TickerConfig("10_TICKERS")
 
     data_dir: str = "../indicators"
     start_date: str = "2016-05-01"
@@ -189,7 +189,7 @@ class AppConfig:
         d["start_date"] = start_date
 
         # Test start date and test end date
-        check_if_later_date(sooner_date=start_date, later_date=end_date)
+        # check_if_later_date(sooner_date=start_date, later_date=end_date)
         d["end_date"] = end_date
 
         d["number_of_episodes"] = 1

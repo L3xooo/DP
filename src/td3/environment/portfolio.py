@@ -80,6 +80,7 @@ class PortfolioEnv(gym.Env):
             shape=(self.num_assets * self.feature_dim,),
             dtype=np.float32,
         )
+        # self.logger.info("State shape: %s", self.features.shape)
 
     def _get_seed(self, seed=None):
         """Sets the random seed for reproducibility."""
@@ -96,6 +97,8 @@ class PortfolioEnv(gym.Env):
         next_step = self.current_step + 1
         if next_step >= self.num_steps:
             raise IndexError
+
+        # self.logger.info("Current step: %s | next_step: %s", self.current_step, next_step)
         return self.features[next_step].flatten()
 
     def _get_state(self):
@@ -103,6 +106,7 @@ class PortfolioEnv(gym.Env):
         return np.concatenate([self._get_features_current().flatten()], axis=0).astype(np.float32)
 
     def _get_state_next(self):
+        # self.logger.info("getting next state")
         """Returns the next state as a flattened array of features."""
         return np.concatenate([self._get_features_next().flatten()], axis=0).astype(np.float32)
 
@@ -197,3 +201,47 @@ class PortfolioEnv(gym.Env):
 
     def step(self, action):
         return self._step_v2(action)
+
+    def step_test(self, action):
+
+        self.weights.set_prev_from_curr()
+        self.portfolio_value.set_prev_from_curr()
+        self.portfolio_cash.set_prev_from_curr()
+        self.shares.set_prev_from_curr()
+        self.assets_prices.set_prev_from_curr()
+
+        # Calculate the current portfolio value with previous cash and shares held
+        self.portfolio_value.set_curr(
+            self.portfolio_cash.prev + self._get_prices().dot(self.shares.prev)
+        )
+
+        # Do the changes in portfolio based on the new weights
+        self.weights.set_curr(action)
+        self.portfolio_cash.set_curr(self.portfolio_value.curr * self.weights.curr[0])
+        self.assets_prices.set_curr(self.weights.curr[1:] * self.portfolio_value.curr)
+
+        # Calculate how many shares per asset with new prices
+        self.shares.set_curr(self.assets_prices.curr / self._get_prices())
+        reward = 0
+        try:
+            reward = self._calculate_reward()
+        except IndexError:
+            self.logger.info("Error on reward calculation")
+
+        state_next = None
+
+        try:
+            state_next = self._get_state_next()
+        except IndexError:
+            self.logger.info("Error on getting next state")
+
+        episode_end = self.current_step >= self.num_steps - 1
+        self.current_step += 1
+
+        return (
+            state_next,
+            float(reward),
+            episode_end,
+            False,
+            {},
+        )

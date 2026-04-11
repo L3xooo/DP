@@ -21,7 +21,7 @@ from td3.utils.file_utils import create_experiment_directories, RunType
 from td3.utils.graph_utils import plot_price_history
 from td3.utils.logs.logger import LoggerFactory
 
-EXPERIMENT_DIR = "simulations/train/run_2026-03-22_15-45-29/"
+EXPERIMENT_DIR = "simulations/train/run_2026-04-11_09-28-09/"
 logger = LoggerFactory.create_logger(__name__)
 
 def get_model_paths() -> Tuple[List[str], List[str]]:
@@ -39,7 +39,6 @@ def get_model_paths() -> Tuple[List[str], List[str]]:
             names.append(filename)
             paths.append(os.path.join(EXPERIMENT_DIR + "models", filename))
     return names, paths
-
 
 def export_weights(
     experiment_metrics: "ExperimentMetrics",
@@ -76,7 +75,7 @@ def main() -> None:
     Main function for the TD3 training pipeline.
     """
     app_config = AppConfig.load_from_train_config(
-        path=f"{EXPERIMENT_DIR}/config.json", start_date="2019-01-21", end_date="2024-01-01")
+        path=f"{EXPERIMENT_DIR}/config.json", start_date="2019-01-22", end_date="2019-01-22")
     model_names, model_paths = get_model_paths()
 
     experiment_metrics = ExperimentMetrics()
@@ -85,7 +84,11 @@ def main() -> None:
     )
 
     data_3d_features, data_3d_prices, tickers, features, all_dates = DataProcessor(data_dir=app_config.data_dir).load_data(app_config)
-    plot_price_history(data_3d_prices, tickers, all_dates, save_path=plots_dir + "/price_history.png")
+    # plot_price_history(data_3d_prices, tickers, all_dates, save_path=plots_dir + "/price_history.png")
+    logger.info("Loaded data with features of shape %s and prices of shape %s", data_3d_features.shape, data_3d_prices.shape)
+    steps , _, _= data_3d_features.shape
+    logger.info("Data contains %s steps", steps)
+    logger.info(all_dates)
 
     for model_path in model_paths:
         env = PortfolioEnv(
@@ -109,22 +112,24 @@ def main() -> None:
             if done:
                 break
 
+            logger.info("Executing action for on date %s step %s", all_dates[env.current_step], env.current_step)
             action, noisy_logits = td3_agent.select_action(state, None, None, False)
 
-            new_state, reward_val, done, trunc, info = env.step(action)
+            new_state, reward_val, done, trunc, info = env.step_test(action)
+            logger.info(done)
             state = new_state
             total_reward = (
                 run_metrics.episodes[-2].reward if len(run_metrics.episodes) > 1 else 0.0
             ) + float(reward_val)
             step_metrics.set_basic(total_reward, env.portfolio_value.curr, action)
 
-    provide_test_graphs(
-        plots_dir,
-        weights_dir,
-        experiment_metrics,
-        model_names,
-        app_config.ticker_config.tickers_with_cash,
-    )
+    # provide_test_graphs(
+    #     plots_dir,
+    #     weights_dir,
+    #     experiment_metrics,
+    #     model_names,
+    #     app_config.ticker_config.tickers_with_cash,
+    # )
     export_weights(experiment_metrics, model_names, ["Cash"] + tickers, weights_dir, all_dates)
 
 
