@@ -92,8 +92,9 @@ class TD3:
 
         if state.ndim == 1:
             state = state.reshape(1, -1)
-
+        # docasny stav sa prevedie na tensor
         state_t = torch.tensor(state, dtype=torch.float32, device=self.device)
+        # hodnoty, ktore vygeneruje aktor
         logits = self.actor(state_t)
 
         if not use_noise:

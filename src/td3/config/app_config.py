@@ -12,14 +12,14 @@ from td3.utils.logger import WithLogger
 @dataclass(frozen=True)
 class AppConfig:
     iterations: int = 1
-    number_of_episodes: int = 200
+    number_of_episodes: int = 50
     batch_size: int = 512
     learning_start_episode: int | None = 100
     replay_buffer_size: int = 100_000
 
-    ticker_config: TickerConfig = TickerConfig("ALL_TICKERS")
+    ticker_config: TickerConfig = TickerConfig("10_TICKERS")
 
-    data_dir: str = "../indicators"
+    data_dir: str = "/home/teodora/Desktop/workspace/DP/indicators"
     start_date: str = "2016-05-01"
     end_date: str = "2019-01-18"
     initial_cash: float = 10000.0

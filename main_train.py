@@ -30,12 +30,13 @@ def main():
     print(features)
     data_3d_prices, _, _, _ = dp.to_3d(df_prices)
 
-    for iteration in range(app_config.iterations):
+    for iteration in range(app_config.iterations): #
         print(f"Starting iteration {iteration + 1} / {app_config.iterations}")
         create_directory(f"{weights_dir}/run_{iteration}")
 
+
         env = PortfolioEnv(features=data_3d_features, prices=data_3d_prices,
-            tickers=tickers, app_config=app_config)
+            tickers=tickers, app_config=app_config) #
 
         td3_agent = TD3(hidden_size=app_config.hidden_size, device=app_config.device,
             state_dim=int(env.observation_space.shape[0]), action_dim=env.action_space.shape[0],
@@ -46,16 +47,18 @@ def main():
             print(f"Starting episode {episode + 1} / {app_config.number_of_episodes}")
 
             episode_metrics = run_metrics.start_episode()
-            state = env.reset(options={"episode_number": episode})
+            state = env.reset(options={"episode_number": episode}) # clear reference variables
             done = False
-
+            # iteracia po jednotlivych dnoch v danej epizody
             while True:
                 if done:
-                    # plot_episode_weights(episode_metrics.final_weights, app_config.ticker_config.tickers_with_cash, episode, weights_dir + "/run_" + str(iteration))
+                    # tuto to trea implementovat
+                    plot_episode_weights(episode_metrics.final_weights, app_config.ticker_config.tickers_with_cash, episode, weights_dir + "/run_" + str(iteration))
                     episode_metrics.aggregate()
                     break
 
-                td3_agent.set_episode(episode)
+                td3_agent.set_episode(episode) # kvoli noisu, ci ho ma pouzit alebo nie
+                # generovanie akcie pomocou TD3
                 action, noisy_logits = td3_agent.select_action(state, temperature=app_config.temperature)
 
                 log_stock_value(logger, tickers, action, "Action Weights")
@@ -63,7 +66,7 @@ def main():
                 # formatted_values = [round(float(x), 2) for x in positive_values]
                 # print(f"Values > 0.01: {formatted_values}, Total count: {len(positive_values)}")
 
-                new_state, reward_val, done, trunc, info = env.step(action)
+                new_state, reward_val, done, trunc, info = env.step(action) # execure trade, decision step
                 env.replay_buffer.add(state, action, reward_val, done, new_state)
                 state = new_state
                 episode_metrics.update(td3_agent.update(env.replay_buffer, batch_size=app_config.batch_size,
@@ -89,6 +92,17 @@ def main():
         image_name="portfolio_value.png",
         save_dir=plots_dir,
         y_label="Total Portfolio Value")
+
+    import csv
+    print(f"Saving weights to CSV files in {weights_dir}...")
+    for r_idx, run in enumerate(experiment_metrics.runs):
+        run_weights_dir = f"{weights_dir}/run_{r_idx}"
+        for e_idx, ep in enumerate(run.episodes):
+            csv_path = f"{run_weights_dir}/episode_{e_idx + 1}_weights.csv"
+            with open(csv_path, mode='w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(tickers)
+                writer.writerows(ep.final_weights)
 
 if __name__ == "__main__":
     main()

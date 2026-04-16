@@ -35,5 +35,6 @@ class Actor(nn.Module):
             x = state
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
+        # vystupna vrstva zabezpeci, ze su hodnoty od 0 do 1
         return torch.sigmoid(self.out(x))
         return self.out(x)
