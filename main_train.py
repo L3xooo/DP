@@ -1,108 +1,92 @@
+"""
+Main training loop for the TD3 agent in the portfolio management environment.
+
+This script initializes the environment, loads data, and runs multiple iterations of training,
+logging metrics and saving models and plots for analysis.
+
+Author: Peter Likavec
+"""
+
 from td3.config.app_config import AppConfig
 from td3.environment.portfolio import PortfolioEnv
 from td3.metrics.metrics import ExperimentMetrics
 from td3.models.td3 import TD3
 from td3.data.data_processor import DataProcessor
+from td3.providers.graph_provider import provide_train_graphs
 from td3.utils.file_utils import create_experiment_directories, create_directory
-from td3.utils.graph_utils import plot_multi_line_chart, plot_episode_weights
-from td3.utils.logger import LoggerFactory, log_stock_value
+from td3.utils.graph_utils import plot_episode_weights, plot_price_history
+from td3.utils.logs.logger import LoggerFactory
 
 logger = LoggerFactory.create_logger(__name__)
 
-def main():
+
+def main() -> None:
+    """
+    Main function to run the TD3 training loop for portfolio management.
+    """
     experiment_metrics = ExperimentMetrics()
-    app_config = AppConfig()
     experiment_dir, plots_dir, models_dir, weights_dir = create_experiment_directories()
+    app_config = AppConfig()
     app_config.to_json(experiment_dir)
 
     dp = DataProcessor(data_dir=app_config.data_dir)
-    df = dp.load_panel(
-        tickers=app_config.ticker_config.tickers,
-        start=app_config.start_date,
-        end=app_config.end_date,
-    )
+    data_3d_features, data_3d_prices, tickers, features, dates = dp.load_data(app_config)
+    plot_price_history(data_3d_prices, tickers, dates, save_path=plots_dir + "/price_history.png")
 
-    # df_features = df.drop(columns=app_config.filter_out, level=1)
-    df_features = df.loc[:, (slice(None), app_config.filter_in)]
-
-    df_prices = df.loc[:, (slice(None), ['close'])]
-    data_3d_features, _, tickers, features = dp.to_3d(df_features)
-    print(features)
-    data_3d_prices, _, _, _ = dp.to_3d(df_prices)
-
-    for iteration in range(app_config.iterations): #
-        print(f"Starting iteration {iteration + 1} / {app_config.iterations}")
+    for iteration in range(app_config.iterations):
+        logger.info("Starting iteration %d", iteration)
         create_directory(f"{weights_dir}/run_{iteration}")
 
+        env = PortfolioEnv(
+            features=data_3d_features, prices=data_3d_prices, tickers=tickers, app_config=app_config
+        )
 
-        env = PortfolioEnv(features=data_3d_features, prices=data_3d_prices,
-            tickers=tickers, app_config=app_config) #
-
-        td3_agent = TD3(hidden_size=app_config.hidden_size, device=app_config.device,
-            state_dim=int(env.observation_space.shape[0]), action_dim=env.action_space.shape[0],
-            noise_anneal_episodes=app_config.number_of_episodes, learning_starts=app_config.learning_start_episode)
+        td3_agent = TD3(
+            hidden_size=app_config.hidden_size,
+            device=app_config.device,
+            state_dim=int(env.observation_space.shape[0]),
+            action_dim=env.action_space.shape[0],
+            noise_anneal_episodes=app_config.number_of_episodes,
+        )
 
         run_metrics = experiment_metrics.start_run(run_id=str(iteration))
         for episode in range(app_config.number_of_episodes):
-            print(f"Starting episode {episode + 1} / {app_config.number_of_episodes}")
+            logger.info("Starting episode %d / %d", episode + 1, app_config.number_of_episodes)
 
             episode_metrics = run_metrics.start_episode()
-            state = env.reset(options={"episode_number": episode}) # clear reference variables
+            state = env.reset(options={"episode_number": episode})
             done = False
-            # iteracia po jednotlivych dnoch v danej epizody
+
             while True:
                 if done:
-                    # tuto to trea implementovat
-                    plot_episode_weights(episode_metrics.final_weights, app_config.ticker_config.tickers_with_cash, episode, weights_dir + "/run_" + str(iteration))
+                    plot_episode_weights(
+                        episode_metrics.final_weights,
+                        app_config.ticker_config.tickers_with_cash,
+                        episode=episode,
+                        save_dir=weights_dir + "/run_" + str(iteration),
+                    )
                     episode_metrics.aggregate()
                     break
 
-                td3_agent.set_episode(episode) # kvoli noisu, ci ho ma pouzit alebo nie
-                # generovanie akcie pomocou TD3
-                action, noisy_logits = td3_agent.select_action(state, temperature=app_config.temperature)
+                td3_agent.set_episode(episode)
+                action, noisy_logits = td3_agent.select_action(state)
 
-                log_stock_value(logger, tickers, action, "Action Weights")
-                # positive_values = [x for x in action if x is not None and x > 0.01]
-                # formatted_values = [round(float(x), 2) for x in positive_values]
-                # print(f"Values > 0.01: {formatted_values}, Total count: {len(positive_values)}")
-
-                new_state, reward_val, done, trunc, info = env.step(action) # execure trade, decision step
+                new_state, reward_val, done, trunc, info = env.step(action)
                 env.replay_buffer.add(state, action, reward_val, done, new_state)
                 state = new_state
-                episode_metrics.update(td3_agent.update(env.replay_buffer, batch_size=app_config.batch_size,
-                                       temperature=app_config.temperature)
-                                       .set_basic(float(reward_val), float(env.portfolio_value.curr), env.weights.curr))
+                episode_metrics.update(
+                    td3_agent.update(
+                        env.replay_buffer,
+                        batch_size=app_config.batch_size,
+                    ).set_basic(
+                        float(reward_val), float(env.portfolio_value.curr), env.weights.curr
+                    )
+                )
 
-        # td3_agent.save_model(models_dir, filename=f'td3_model_run_{iteration}.pth')
+        td3_agent.save_model(models_dir, filename=f'td3_model_run_{iteration}.pth')
 
-    plot_multi_line_chart(
-        data_series=[[ep.total_reward for ep in run.episodes]
-        for run in experiment_metrics.runs],
-        labels=[r.run_id for r in experiment_metrics.runs],
-        title="Episode Total Reward per Run",
-        image_name="episode_rewards.png",
-        save_dir=plots_dir,
-        y_label="Total Reward")
+    provide_train_graphs(plots_dir, experiment_metrics)
 
-    plot_multi_line_chart(
-        data_series=[[ep.final_portfolio_value for ep in run.episodes]
-        for run in experiment_metrics.runs],
-        labels=[r.run_id for r in experiment_metrics.runs],
-        title="Portfolio Value per Run",
-        image_name="portfolio_value.png",
-        save_dir=plots_dir,
-        y_label="Total Portfolio Value")
-
-    import csv
-    print(f"Saving weights to CSV files in {weights_dir}...")
-    for r_idx, run in enumerate(experiment_metrics.runs):
-        run_weights_dir = f"{weights_dir}/run_{r_idx}"
-        for e_idx, ep in enumerate(run.episodes):
-            csv_path = f"{run_weights_dir}/episode_{e_idx + 1}_weights.csv"
-            with open(csv_path, mode='w', newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow(tickers)
-                writer.writerows(ep.final_weights)
 
 if __name__ == "__main__":
     main()

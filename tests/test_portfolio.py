@@ -189,8 +189,6 @@ class TestPortfolioReset:
         )
 
         env.current_step = 3
-        env.portfolio_value_history = [111.0, 222.0]
-        env.portfolio_weights_history = [np.ones(N + 1, dtype=np.float32)]
 
         env.portfolio_value = PrevCurr(prev=1.0, curr=2.0)
         env.portfolio_cash = PrevCurr(prev=3.0, curr=4.0)
@@ -223,10 +221,6 @@ class TestPortfolioReset:
         assert env.portfolio_value.curr == DEFAULT_PORTFOLIO_VALUE
         assert env.portfolio_cash.curr == DEFAULT_PORTFOLIO_VALUE
 
-        assert env.portfolio_value_history == [DEFAULT_PORTFOLIO_VALUE]
-        assert len(env.portfolio_weights_history) == 1
-        np.testing.assert_array_equal(env.portfolio_weights_history[0], env.weights.curr)
-
         expected_obs = features[0].flatten().astype(np.float32)
         np.testing.assert_allclose(obs, expected_obs)
 
@@ -241,14 +235,16 @@ class TestPortfolioReward:
             lambda prices=None: 0.0 if prices is None else 1.0,
         )
 
-        r = env._calculate_reward(shares_changes=np.array([0.0], dtype=np.float32))
-        assert r == pytest.approx(1.0 / 1e-12, rel=0, abs=1e-6)
+        r = env._calculate_reward()
+        # log((1.0 + 1e-12) / (0.0 + 1e-12)) ≈ log(1e12) ≈ 27.631
+        expected = np.log((1.0 + 1e-12) / (0.0 + 1e-12))
+        assert r == pytest.approx(expected, rel=1e-6)
 
     @pytest.mark.parametrize(
         "pv, next_pv, expected",
         [
-            (100.0, 110.0, 0.10),
-            (200.0, 180.0, -0.10),
+            (100.0, 110.0, np.log(110.0 / 100.0)),  # ≈  0.09531
+            (200.0, 180.0, np.log(180.0 / 200.0)),  # ≈ -0.10536
             (1000.0, 1000.0, 0.0),
         ],
         ids=["up_10pct", "down_10pct", "flat"],
@@ -259,16 +255,11 @@ class TestPortfolioReward:
         sentinel_prices = object()
         monkeypatch.setattr(env, "_get_prices", lambda extra_step: sentinel_prices)
 
-        # Make _calculate_portfolio_value return pv for current and next_pv for next prices
         def fake_calc_portfolio_value(prices=None):
             return pv if prices is None else next_pv
 
         monkeypatch.setattr(env, "_calculate_portfolio_value", fake_calc_portfolio_value)
 
-        r = env._calculate_reward(shares_changes=np.array([0.0], dtype=np.float32))
+        r = env._calculate_reward()
 
-        assert r == pytest.approx(expected, rel=0, abs=1e-12)
-
-
-class TestPortfolioStep:
-    pass
+        assert r == pytest.approx(expected, rel=0, abs=1e-10)

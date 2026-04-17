@@ -13,10 +13,7 @@ select = ["E", "W", "N", "D"]
 ignore = ["D204"]
 
 [tool.ruff.lint.pydocstyle]
-convention = "pep257"
-
-[tool.ruff.lint.pycodestyle]
-max-doc-length = 72
+convention = "google"
 
 [tool.ruff.format]
 quote-style = "preserve"

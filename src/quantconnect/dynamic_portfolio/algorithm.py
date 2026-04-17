@@ -1,8 +1,23 @@
+"""
+DynamicPortfolio algorithm module.
+
+Defines DynamicPortfolio, a QuantConnect algorithm that dynamically allocates
+weights to a set of equities based on a CSV file. Positions are rebalanced
+daily according to the weights defined per date.
+
+Author: Peter Likavec
+"""
+
 from AlgorithmImports import *
 import csv, io
 from datetime import datetime
 
+
 class DynamicPortfolio(QCAlgorithm):
+    """
+    A QuantConnect algorithm that allocates portfolio weights dynamically
+    from a CSV file containing daily weights per security.
+    """
 
     def __init__(self):
         super().__init__()
@@ -12,13 +27,26 @@ class DynamicPortfolio(QCAlgorithm):
         self.tickers = None
 
     def initialize(self):
-        self.set_security_initializer(lambda security: security.set_fee_model(ConstantFeeModel(0, "USD")))
+        self.set_security_initializer(
+            lambda security: security.set_fee_model(ConstantFeeModel(0, "USD"))
+        )
 
         self.set_start_date(2019, 1, 21)
         self.set_end_date(2023, 12, 24)
         self.set_cash(10000)
 
-        self.tickers = ["AAPL","MSFT","AMZN","GOOGL","META","TSLA","NVDA","JPM","JNJ","XOM"]
+        self.tickers = [
+            "AAPL",
+            "MSFT",
+            "AMZN",
+            "GOOGL",
+            "META",
+            "TSLA",
+            "NVDA",
+            "JPM",
+            "JNJ",
+            "XOM",
+        ]
         for t in self.tickers:
             self.add_equity(t, Resolution.DAILY)
 
@@ -47,11 +75,18 @@ class DynamicPortfolio(QCAlgorithm):
             weights = [float(x) for x in row[1:]]
             self.weights_by_date[d] = weights
 
-        self.debug(f"Loaded {key}: days={len(self.weights_by_date)} | headers={self.weights_headers}")
+        self.debug(
+            f"Loaded {key}: days={len(self.weights_by_date)} | headers={self.weights_headers}"
+        )
 
         self.last_rebalance_date = None
 
     def on_data(self, data: Slice):
+        """
+        Rebalances the portfolio daily according to the weights for the current date.
+        It skips rebalancing if it has already been done for today.
+        The weights are read from the CSV file and are capped between 0 and 1.
+        """
         today = self.time.date()
         if self.last_rebalance_date == today:
             return

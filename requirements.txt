@@ -6,4 +6,4 @@ pandas
 pytest
 torch
 alpaca-trade-api
-pytest_bdd
+optuna

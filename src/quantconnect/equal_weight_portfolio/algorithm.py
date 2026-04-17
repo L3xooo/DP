@@ -1,7 +1,19 @@
+"""
+BenchmarkPortfolio algorithm module.
+
+Defines BenchmarkPortfolio, a QuantConnect algorithm that invests once in a predefined
+set of large-cap equities with equal weights and holds the positions throughout the backtest.
+
+Author: Peter Likavec
+"""
+
 from AlgorithmImports import *
 
 
 class BenchmarkPortfolio(QCAlgorithm):
+    """
+    A simple benchmark portfolio algorithm that invests equally in a set of large-cap equities.
+    """
 
     def __init__(self):
         super().__init__()
@@ -16,7 +28,18 @@ class BenchmarkPortfolio(QCAlgorithm):
         self.set_end_date(2023, 12, 24)
         self.set_cash(10000)
 
-        self.tickers = ["AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "NVDA", "JPM", "JNJ", "XOM"]
+        self.tickers = [
+            "AAPL",
+            "MSFT",
+            "AMZN",
+            "GOOGL",
+            "META",
+            "TSLA",
+            "NVDA",
+            "JPM",
+            "JNJ",
+            "XOM",
+        ]
 
         for t in self.tickers:
             self.add_equity(t, Resolution.DAILY)
@@ -25,9 +48,16 @@ class BenchmarkPortfolio(QCAlgorithm):
         self.equal_weight = 1.0 / (len(self.tickers) + 1)
 
     def on_data(self, data: Slice):
+        """
+        Invest once in all tickers with equal weight when data is available.
+        Does nothing if already invested or if any ticker data is missing.
+        """
         if self.invested_once:
             return
-        if any(not data.contains_key(self.symbol(t)) or data[self.symbol(t)] is None for t in self.tickers):
+        if any(
+            not data.contains_key(self.symbol(t)) or data[self.symbol(t)] is None
+            for t in self.tickers
+        ):
             return
         for t in self.tickers:
             self.set_holdings(t, self.equal_weight)

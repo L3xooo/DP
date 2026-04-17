@@ -1,7 +1,15 @@
-from __future__ import annotations
+"""
+Ticker universe definitions and configuration for the TD3 training pipeline.
 
-from dataclasses import dataclass
-from typing import Dict, List, Literal
+Provides named presets of stock tickers (e.g. 10, 30, or all available symbols)
+and the TickerConfig dataclass used to select and access a ticker universe by name.
+
+Author: Peter Likavec
+"""
+
+from dataclasses import dataclass, field
+from typing import Dict, List, Literal, Optional
+import random
 
 ALL_TICKERS = """
 A       AMAT    AZO     CAG     CMI     CZR     DXCM    EW      HBAN    IEX     JNUG    LLY     MHK     NEE     ORLY    POOL    RVTY    STT     TPR     VGT     WRB
@@ -51,7 +59,13 @@ AES     APH     BLDR    CFG     CRM     DLR     EOG     FICO    GM      HST     
 """
 
 
-TickerConfigName = Literal["10_TICKERS", "30_TICKERS", "ANOTHER_10_TICKERS", "ALL_TICKERS", "LESS_TICKERS"]
+TickerConfigName = Literal[
+    "10_TICKERS",
+    "ANOTHER_10_TICKERS",
+    "ALL_TICKERS",
+    "LESS_TICKERS",
+    "RANDOM_TICKERS",
+]
 
 TICKER_PRESETS: Dict[TickerConfigName, List[str]] = {
     "LESS_TICKERS": LESS_TICKERS.split(),
@@ -80,56 +94,57 @@ TICKER_PRESETS: Dict[TickerConfigName, List[str]] = {
         "JNJ",
         "XOM",
     ],
-    "30_TICKERS": [
-        "AAPL",
-        "MSFT",
-        "GOOGL",
-        "META",
-        "NVDA",
-        "AMD",
-        "INTC",
-        "IBM",
-        "AMZN",
-        "HD",
-        "MCD",
-        "NKE",
-        "SBUX",
-        "COST",
-        "JPM",
-        "BAC",
-        "WFC",
-        "GS",
-        "MS",
-        "JNJ",
-        "PFE",
-        "MRK",
-        "ABBV",
-        "UNH",
-        "XOM",
-        "CVX",
-        "COP",
-        "CAT",
-        "BA",
-        "GE",
-        "VZ",
-        "T",
-    ],
 }
 
 
 @dataclass(frozen=True)
 class TickerConfig:
-    """Ticker universe preset chosen by name."""
+    """Represents a named ticker universe preset.
+
+    Attributes:
+        name: Identifier of the ticker preset to use.
+        _random_tickers: Optional cached random ticker sample used only when
+            ``name`` is ``"RANDOM_TICKERS"``.
+    """
 
     name: TickerConfigName
+    _random_tickers: Optional[List[str]] = field(default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        """Initializes a random ticker sample for the random preset.
+
+        When ``name`` is ``"RANDOM_TICKERS"`` and no sample is provided,
+        this method stores a 10-symbol random sample from ``LESS_TICKERS``.
+        """
+        if self.name == "RANDOM_TICKERS" and self._random_tickers is None:
+            object.__setattr__(self, "_random_tickers", random.sample(LESS_TICKERS.split(), 10))
 
     @property
     def tickers(self) -> List[str]:
+        """Returns the active ticker universe.
+
+        Returns:
+            List[str]: Randomly sampled tickers for ``"RANDOM_TICKERS"`` or
+            the predefined preset tickers for all other names.
+        """
+        if self.name == "RANDOM_TICKERS":
+            return self._random_tickers or []
         return TICKER_PRESETS[self.name]
 
     @property
     def tickers_with_cash(self) -> List[str]:
+        """Returns active tickers prefixed with the synthetic cash asset.
+
+        Returns:
+            List[str]: A list where ``"Cash"`` is the first symbol followed by
+            the current ticker universe.
+        """
         return ["Cash", *self.tickers]
 
     def __len__(self) -> int:
+        """Returns the number of active tickers.
+
+        Returns:
+            int: Length of the current ticker universe.
+        """
         return len(self.tickers)
