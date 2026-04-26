@@ -29,12 +29,12 @@ class AppConfig:
     and the target ticker universe.
     """
 
-    iterations: int = 3
+    iterations: int = 1
     number_of_episodes: int = 300
     batch_size: int = 512
     replay_buffer_size: int = 100_000
 
-    ticker_config: TickerConfig = TickerConfig("10_TICKERS")
+    ticker_config: TickerConfig = TickerConfig("RANDOM_TICKERS")
 
     data_dir: str = "../indicators"
     start_date: str = "2016-05-01"

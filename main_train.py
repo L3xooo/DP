@@ -71,17 +71,18 @@ def main() -> None:
                 td3_agent.set_episode(episode)
                 action, noisy_logits = td3_agent.select_action(state)
 
-                new_state, reward_val, done, trunc, info = env.step(action)
-                env.replay_buffer.add(state, action, reward_val, done, new_state)
-                state = new_state
-                episode_metrics.update(
-                    td3_agent.update(
-                        env.replay_buffer,
-                        batch_size=app_config.batch_size,
-                    ).set_basic(
-                        float(reward_val), float(env.portfolio_value.curr), env.weights.curr
+                new_state, reward_val, done, _, _ = env.step(action)
+                if new_state is not None:
+                    env.replay_buffer.add(state, action, reward_val, done, new_state)
+                    state = new_state
+                    episode_metrics.update(
+                        td3_agent.update(
+                            env.replay_buffer,
+                            batch_size=app_config.batch_size,
+                        ).set_basic(
+                            float(reward_val), float(env.portfolio_value.curr), env.weights.curr
+                        )
                     )
-                )
 
         td3_agent.save_model(models_dir, filename=f'td3_model_run_{iteration}.pth')
 

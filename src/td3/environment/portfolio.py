@@ -187,14 +187,27 @@ class PortfolioEnv(gym.Env):
 
         # Calculate how many shares per asset with new prices
         self.shares.set_curr(self.assets_prices.curr / self._get_prices())
-        reward = self._calculate_reward()
 
+        reward = 0
+        try:
+            reward = self._calculate_reward()
+        except IndexError:
+            self.logger.info("Error on reward calculation")
+
+        next_state = None
+        try:
+            next_state = self._get_state_next()
+        except IndexError:
+            self.logger.info("Error on getting next state")
+
+        episode_end = self.current_step >= self.num_steps - 1
         self.current_step += 1
 
         return (
-            self._get_state_next(),
+            next_state,
             float(reward),
-            self.current_step + 1 >= self.num_steps - 1,
+            episode_end,
+            # self.current_step + 1 >= self.num_steps - 1,
             False,
             {},
         )
