@@ -36,4 +36,5 @@ def logits_to_weights(logits: torch.Tensor) -> torch.Tensor:
         A tensor of the same shape as logits, where each slice is valid distribution obtained
         by applying the entmax transformation with alpha=1.6 along the last dimension.
     """
+    # return torch.softmax(logits, dim=-1)
     return entmax_bisect(logits, dim=-1, alpha=1.6)

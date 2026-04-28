@@ -30,15 +30,15 @@ class AppConfig:
     """
 
     iterations: int = 1
-    number_of_episodes: int = 300
+    number_of_episodes: int = 50
     batch_size: int = 512
-    replay_buffer_size: int = 100_000
+    replay_buffer_size: int = 20_000
 
-    ticker_config: TickerConfig = TickerConfig("RANDOM_TICKERS")
+    ticker_config: TickerConfig = TickerConfig("10_TICKERS")
 
     data_dir: str = "../indicators"
-    start_date: str = "2016-05-01"
-    end_date: str = "2019-01-18"
+    start_date: str = "2017-05-01"
+    end_date: str = "2020-05-30"
     initial_cash: float = 10000.0
 
     filter_out: List[str] = field(
@@ -85,7 +85,7 @@ class AppConfig:
     )
 
     hidden_size: int = 512
-    lr: float = 3e-4
+    lr: float = 5e-5 #3e-4
     noise_init: float = 0.3
     noise_final: float = 0.05
     noise_anneal_episodes: int = 500
@@ -147,7 +147,7 @@ class AppConfig:
         Returns:
             An instance of AppConfig with values loaded from the file and overrides applied.
         """
-
+        cls.logger.info("Loading AppConfig from %s", path)
         path = Path(path)
         if path.is_dir():
             path = path / "config.json"
@@ -189,7 +189,7 @@ class AppConfig:
         d["start_date"] = start_date
 
         # Test start date and test end date
-        # check_if_later_date(sooner_date=start_date, later_date=end_date)
+        check_if_later_date(sooner_date=start_date, later_date=end_date)
         d["end_date"] = end_date
 
         d["number_of_episodes"] = 1

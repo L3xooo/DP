@@ -12,15 +12,24 @@ class Critic(nn.Module):
     """
     Critic network that estimates the Q-value for a given state-action pair.
 
-    The network consists of three fully connected layers with ReLU activations.
+    The network consists of three fully connected layers with ReLU activations,
+    batch normalization for improved stability, and optional dropout for regularization.
     Used as part of the TD3 (Twin Delayed Deep Deterministic Policy Gradient) algorithm.
     """
 
-    def __init__(self, state_dim: int, action_dim: int, hidden_size: int = 64):
+    def __init__(
+        self,
+        state_dim: int,
+        action_dim: int,
+        hidden_size: int = 64,
+        dropout_rate: float = 0.1,
+        use_batch_norm: bool = True,
+    ):
         super(Critic, self).__init__()
         self.fc1 = nn.Linear(state_dim + action_dim, hidden_size)
         self.fc2 = nn.Linear(hidden_size, hidden_size)
         self.fc3 = nn.Linear(hidden_size, 1)
+
 
     def forward(self, state, action):
         """

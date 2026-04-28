@@ -7,9 +7,11 @@ state-action pairs.
 """
 
 import torch
+import random
 from torch import optim
 import torch.nn as nn
 import numpy as np
+import math
 
 from td3.metrics.metrics import StepMetrics
 from td3.models.actor import Actor
@@ -36,10 +38,14 @@ class TD3:
         hidden_size=512,
         gamma=0.99,
         tau=0.005,
-        lr=3e-4,
+        lr=1e-4,
+        weight_decay=1e-5,
+        max_grad_norm=1.0,
         noise_init=0.3,
         noise_final=0.05,
         noise_anneal_episodes=500,
+        noise_sigmoid_midpoint=0.6,
+        noise_sigmoid_steepness=12.0,
         device=None,
     ):
         """Initialize TD3 networks, optimizers, and exploration schedule.
@@ -51,19 +57,26 @@ class TD3:
             gamma: Discount factor for Bellman targets.
             tau: Polyak averaging coefficient for target updates.
             lr: Learning rate for actor and critic optimizers.
+            weight_decay: L2 regularization strength used by AdamW optimizers.
+            max_grad_norm: Maximum gradient norm used for gradient clipping.
             noise_init: Initial exploration noise standard deviation.
             noise_final: Final exploration noise standard deviation.
-            noise_anneal_episodes: Number of episodes for linear noise annealing.
+            noise_anneal_episodes: Number of episodes for exploration-noise annealing.
+            noise_sigmoid_midpoint: Midpoint of sigmoid progress in [0, 1].
+            noise_sigmoid_steepness: Steepness of sigmoid curve (>0).
             device: Torch device where tensors and modules are allocated.
         """
         self.device = device
         self.total_it = 0
         self.policy_noise = 0.2
         self.noise_clip = 0.5
+        self.max_grad_norm = float(max_grad_norm)
 
         self._expl_noise_init = float(noise_init)
         self._expl_noise_final = float(noise_final)
         self._expl_noise_anneal = int(noise_anneal_episodes)
+        self._expl_noise_sigmoid_midpoint = float(min(max(noise_sigmoid_midpoint, 0.0), 1.0))
+        self._expl_noise_sigmoid_steepness = float(max(noise_sigmoid_steepness, 1e-6))
         self.current_episode = 0
 
         self.actor = Actor(input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size).to(
@@ -80,9 +93,21 @@ class TD3:
 
         self.mu = np.zeros(action_dim)
 
-        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=lr)
-        self.critic1_optimizer = optim.Adam(self.critic1.parameters(), lr=lr)
-        self.critic2_optimizer = optim.Adam(self.critic2.parameters(), lr=lr)
+        self.actor_optimizer = optim.AdamW(
+            self.actor.parameters(),
+            lr=lr,
+            weight_decay=weight_decay,
+        )
+        self.critic1_optimizer = optim.AdamW(
+            self.critic1.parameters(),
+            lr=lr,
+            weight_decay=weight_decay,
+        )
+        self.critic2_optimizer = optim.AdamW(
+            self.critic2.parameters(),
+            lr=lr,
+            weight_decay=weight_decay,
+        )
 
         self.target_actor.load_state_dict(self.actor.state_dict())
         self.target_critic1.load_state_dict(self.critic1.state_dict())
@@ -91,11 +116,11 @@ class TD3:
         self.gamma = gamma
         self.tau = tau
 
-    def set_episode(self, episode_index: int):
+    def set_episode_and_noise(self, episode_index: int):
         """Update current episode and anneal exploration noise.
 
         Args:
-            episode_index: Zero-based episode index used for linear annealing.
+            episode_index: Zero-based episode index used for sigmoid annealing.
         """
         self.current_episode = int(episode_index)
 
@@ -104,8 +129,19 @@ class TD3:
             return
 
         progress = min(self.current_episode / float(self._expl_noise_anneal), 1.0)
+
+        # Normalize sigmoid output to [0, 1] so noise starts at init and ends at final.
+        k = self._expl_noise_sigmoid_steepness
+        m = self._expl_noise_sigmoid_midpoint
+
+        s = 1.0 / (1.0 + math.exp(-k * (progress - m)))
+        s0 = 1.0 / (1.0 + math.exp(-k * (0.0 - m)))
+        s1 = 1.0 / (1.0 + math.exp(-k * (1.0 - m)))
+        sigmoid_progress = (s - s0) / (s1 - s0 + 1e-12)
+
         self.policy_noise = float(
-            self._expl_noise_init + (self._expl_noise_final - self._expl_noise_init) * progress
+            self._expl_noise_init
+            + (self._expl_noise_final - self._expl_noise_init) * sigmoid_progress
         )
 
     @torch.no_grad()
@@ -130,6 +166,7 @@ class TD3:
                 - Noisy logits tensor used to compute the returned action.
         """
         # state can be 1D (single timestep) or already batched
+        # self.logger.debug("State: %s", state)
         if not isinstance(state, (np.ndarray,)):
             state = np.array(state, dtype=np.float32)
         else:
@@ -142,6 +179,7 @@ class TD3:
         logits = self.actor(state_t)
 
         if not use_noise:
+            self.logger.debug("Not using noise.")
             noisy_logits = logits
         else:
             if noise_std is None:
@@ -154,6 +192,25 @@ class TD3:
         weights = logits_to_weights(noisy_logits)
         action = weights.squeeze(0).cpu().numpy()
         return action, noisy_logits
+
+    def _set_seed(self, seed: int | None):
+        """Set random seeds for reproducible TD3 initialization and training."""
+        if seed is None:
+            return
+
+        os.environ["PYTHONHASHSEED"] = str(seed)
+
+        random.seed(seed)
+        np.random.seed(seed)
+
+        torch.manual_seed(seed)
+
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(seed)
+            torch.cuda.manual_seed_all(seed)
+
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
     def update(self, replay_buffer, batch_size) -> StepMetrics:
         """Run one TD3 optimization step from replay memory.
@@ -205,10 +262,12 @@ class TD3:
 
         self.critic1_optimizer.zero_grad()
         critic1_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.critic1.parameters(), self.max_grad_norm)
         self.critic1_optimizer.step()
 
         self.critic2_optimizer.zero_grad()
         critic2_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.critic2.parameters(), self.max_grad_norm)
         self.critic2_optimizer.step()
 
         critic1_loss_val = float(critic1_loss.detach().cpu().item())
@@ -228,6 +287,7 @@ class TD3:
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_grad_norm)
             self.actor_optimizer.step()
 
             self._update_target_network(self.target_actor, self.actor)

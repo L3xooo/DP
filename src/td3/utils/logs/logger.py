@@ -58,18 +58,18 @@ class LoggerFactory:
     def create_logger(name: str):
         LoggerFactory.clear_log()
         logger = logging.getLogger(name)
-        logger.setLevel(logging.INFO)
+        logger.setLevel(logging.DEBUG)
         logger.disabled = False
 
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(ColoredFormatter())
         # File handler without colors (plain text)
         file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        # file_handler = logging.FileHandler(LoggerFactory.LOG_FILE)
-        # file_handler.setFormatter(file_formatter)
+        file_handler = logging.FileHandler(LoggerFactory.LOG_FILE)
+        file_handler.setFormatter(file_formatter)
 
         logger.addHandler(console_handler)
-        # logger.addHandler(file_handler)
+        logger.addHandler(file_handler)
 
         return logger
 

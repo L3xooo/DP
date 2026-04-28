@@ -7,7 +7,9 @@ from typing import List
 
 from td3.metrics.metrics import ExperimentMetrics
 from td3.utils.graph_utils import plot_multi_line_chart, plot_episode_weights
+from td3.utils.logs.logger import LoggerFactory
 
+logger = LoggerFactory.create_logger(__name__)
 
 def provide_test_graphs(
     plots_dir: str,
@@ -36,7 +38,7 @@ def provide_test_graphs(
         image_name="episode_rewards.png",
         save_dir=plots_dir,
         y_label="Reward",
-        x_label="Episode",
+        x_label="Step",
     )
 
     plot_multi_line_chart(
@@ -48,13 +50,12 @@ def provide_test_graphs(
         image_name="portfolio_reward.png",
         save_dir=plots_dir,
         y_label="Portfolio Value",
-        x_label="Episode",
+        x_label="Step",
     )
 
     for run, name in zip(experiment_metrics.runs, model_names):
         # Take all episodes except the last one
-        data_series = [step.weights for step in run.episodes[:-1]]
-
+        data_series = [step.weights for step in run.episodes[:-2]]
         plot_episode_weights(
             data_series,
             tickers,
@@ -94,6 +95,23 @@ def provide_train_graphs(plots_dir: str, experiment_metrics: ExperimentMetrics) 
         image_name="portfolio_value.png",
         save_dir=plots_dir,
         y_label="Portfolio value",
+        x_label="Episode",
+    )
+
+    plot_multi_line_chart(
+        data_series=[
+            [
+                float(ep.exploration_noise)
+                for ep in run.episodes
+                if getattr(ep, "exploration_noise", None) is not None
+            ]
+            for run in experiment_metrics.runs
+        ],
+        labels=[r.run_id for r in experiment_metrics.runs],
+        title="Exploration noise over episodes",
+        image_name="exploration_noise_over_episodes.png",
+        save_dir=plots_dir,
+        y_label="Noise std",
         x_label="Episode",
     )
 

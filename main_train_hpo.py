@@ -93,7 +93,7 @@ def run_training(
                     episode_metrics.aggregate()
                     break
 
-                td3_agent.set_episode(episode)
+                td3_agent.set_episode_and_noise(episode)
                 action, _ = td3_agent.select_action(state)
 
                 if log_actions:
