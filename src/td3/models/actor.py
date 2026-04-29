@@ -44,8 +44,6 @@ class Actor(nn.Module):
         self.fc2 = nn.Linear(hidden_size, hidden_size)
         self.out = nn.Linear(hidden_size, action_dim)
 
-        # Normalization layers: LayerNorm is typically more stable with small batch sizes
-        # (common in financial RL), whereas BatchNorm can work well with larger batches.
         self.normalization = normalization
         if normalization == "batch":
             self.norm1 = nn.BatchNorm1d(hidden_size)
@@ -57,7 +55,6 @@ class Actor(nn.Module):
             self.norm1 = nn.Identity()
             self.norm2 = nn.Identity()
 
-        # Dropout for regularization — applied only during training (nn.Dropout honors module.train()).
         self.dropout = nn.Dropout(p=dropout_rate) if dropout_rate and dropout_rate > 0.0 else nn.Identity()
 
     def forward(self, state: Tensor) -> Tensor:
@@ -76,17 +73,14 @@ class Actor(nn.Module):
         else:
             x = state
 
-        # first layer + normalization + nonlinearity + dropout
         x = self.fc1(x)
         x = self.norm1(x)
         x = F.relu(x)
         x = self.dropout(x)
 
-        # second layer + normalization + nonlinearity + dropout
         x = self.fc2(x)
         x = self.norm2(x)
         x = F.relu(x)
         x = self.dropout(x)
 
-        # final logits -> sigmoid to keep outputs in (0,1) before entmax/softmax conversion
         return torch.sigmoid(self.out(x))

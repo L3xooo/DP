@@ -90,7 +90,7 @@ class AppConfig:
     noise_final: float = 0.05
     device: Optional[str] = None
     dropout_rate: float = 0.0
-    normalization: Optional[str] = "batch"
+    normalization: Optional[str] = "layer"
 
     def __post_init__(self):
         """
