@@ -80,6 +80,8 @@ def run_training(
             noise_init=app_config.noise_init,
             noise_final=app_config.noise_final,
             noise_anneal_episodes=app_config.noise_anneal_episodes,
+            dropout_rate=app_config.dropout_rate,
+            normalization=app_config.normalization,
         )
 
         run_metrics = experiment_metrics.start_run(run_id=str(iteration))

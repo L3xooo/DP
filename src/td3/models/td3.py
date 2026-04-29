@@ -46,6 +46,9 @@ class TD3:
         noise_anneal_episodes=500,
         noise_sigmoid_midpoint=0.6,
         noise_sigmoid_steepness=12.0,
+        # regularization options
+        dropout_rate: float = 0.0,
+        normalization: str | None = "layer",
         device=None,
     ):
         """Initialize TD3 networks, optimizers, and exploration schedule.
@@ -79,11 +82,29 @@ class TD3:
         self._expl_noise_sigmoid_steepness = float(max(noise_sigmoid_steepness, 1e-6))
         self.current_episode = 0
 
-        self.actor = Actor(input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size).to(
-            self.device
-        )
-        self.critic1 = Critic(state_dim, action_dim, hidden_size).to(self.device)
-        self.critic2 = Critic(state_dim, action_dim, hidden_size).to(self.device)
+        # Create networks with optional dropout/normalization for better generalization
+        self.actor = Actor(
+            input_dim=state_dim,
+            action_dim=action_dim,
+            hidden_size=hidden_size,
+            dropout_rate=dropout_rate,
+            normalization=normalization,
+        ).to(self.device)
+
+        self.critic1 = Critic(
+            state_dim,
+            action_dim,
+            hidden_size,
+            dropout_rate=dropout_rate,
+            normalization=normalization,
+        ).to(self.device)
+        self.critic2 = Critic(
+            state_dim,
+            action_dim,
+            hidden_size,
+            dropout_rate=dropout_rate,
+            normalization=normalization,
+        ).to(self.device)
 
         self.target_actor = Actor(
             input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size
@@ -177,7 +198,7 @@ class TD3:
 
         state_t = torch.tensor(state, dtype=torch.float32, device=self.device)
         logits = self.actor(state_t)
-
+        self.logger.debug(f"Logits: %s {logits}")
         if not use_noise:
             self.logger.debug("Not using noise.")
             noisy_logits = logits
@@ -192,25 +213,6 @@ class TD3:
         weights = logits_to_weights(noisy_logits)
         action = weights.squeeze(0).cpu().numpy()
         return action, noisy_logits
-
-    def _set_seed(self, seed: int | None):
-        """Set random seeds for reproducible TD3 initialization and training."""
-        if seed is None:
-            return
-
-        os.environ["PYTHONHASHSEED"] = str(seed)
-
-        random.seed(seed)
-        np.random.seed(seed)
-
-        torch.manual_seed(seed)
-
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed(seed)
-            torch.cuda.manual_seed_all(seed)
-
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
 
     def update(self, replay_buffer, batch_size) -> StepMetrics:
         """Run one TD3 optimization step from replay memory.

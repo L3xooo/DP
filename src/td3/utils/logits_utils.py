@@ -7,6 +7,9 @@ Author: Peter Likavec
 import torch
 from entmax import entmax_bisect
 
+from td3.utils.logs.logger import LoggerFactory
+
+logger = LoggerFactory.create_logger(__name__)
 
 def add_logit_noise(logits: torch.Tensor, noise_std: float, noise_clip: float) -> torch.Tensor:
     """
@@ -22,6 +25,8 @@ def add_logit_noise(logits: torch.Tensor, noise_std: float, noise_clip: float) -
     if noise_std and noise_std > 0:
         noise = torch.randn_like(logits) * noise_std
         noise = noise.clamp(-noise_clip, noise_clip)
+        logger.debug(f"Noise: %s {noise}")
+
         return logits + noise
     return logits
 

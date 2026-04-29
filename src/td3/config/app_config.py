@@ -30,9 +30,9 @@ class AppConfig:
     """
 
     iterations: int = 1
-    number_of_episodes: int = 50
-    batch_size: int = 512
-    replay_buffer_size: int = 20_000
+    number_of_episodes: int = 100
+    batch_size: int = 128
+    replay_buffer_size: int = 40_000
 
     ticker_config: TickerConfig = TickerConfig("10_TICKERS")
 
@@ -85,11 +85,12 @@ class AppConfig:
     )
 
     hidden_size: int = 512
-    lr: float = 5e-5 #3e-4
+    lr: float = 1e-4
     noise_init: float = 0.3
     noise_final: float = 0.05
-    noise_anneal_episodes: int = 500
     device: Optional[str] = None
+    dropout_rate: float = 0.0
+    normalization: Optional[str] = "batch"
 
     def __post_init__(self):
         """

@@ -22,13 +22,29 @@ class Critic(nn.Module):
         state_dim: int,
         action_dim: int,
         hidden_size: int = 64,
-        dropout_rate: float = 0.1,
-        use_batch_norm: bool = True,
+        dropout_rate: float = 0.0,
+        normalization: str | None = "layer",
     ):
         super(Critic, self).__init__()
+        # Combine state and action as input to the critic
         self.fc1 = nn.Linear(state_dim + action_dim, hidden_size)
         self.fc2 = nn.Linear(hidden_size, hidden_size)
         self.fc3 = nn.Linear(hidden_size, 1)
+
+        # Normalization layers: prefer LayerNorm for small-batch RL scenarios
+        self.normalization = normalization
+        if normalization == "batch":
+            self.norm1 = nn.BatchNorm1d(hidden_size)
+            self.norm2 = nn.BatchNorm1d(hidden_size)
+        elif normalization == "layer":
+            self.norm1 = nn.LayerNorm(hidden_size)
+            self.norm2 = nn.LayerNorm(hidden_size)
+        else:
+            self.norm1 = nn.Identity()
+            self.norm2 = nn.Identity()
+
+        # Optional dropout for critic hidden representations
+        self.dropout = nn.Dropout(p=dropout_rate) if dropout_rate and dropout_rate > 0.0 else nn.Identity()
 
 
     def forward(self, state, action):
@@ -42,7 +58,17 @@ class Critic(nn.Module):
         Returns:
             torch.Tensor: Estimated Q-value of shape (batch_size, 1).
         """
-        x = torch.relu(self.fc1(torch.cat([state, action], dim=1)))
-        x = torch.relu(self.fc2(x))
+        x = torch.cat([state, action], dim=1)
+
+        x = self.fc1(x)
+        x = self.norm1(x)
+        x = torch.relu(x)
+        x = self.dropout(x)
+
+        x = self.fc2(x)
+        x = self.norm2(x)
+        x = torch.relu(x)
+        x = self.dropout(x)
+
         q_value = self.fc3(x)
         return q_value

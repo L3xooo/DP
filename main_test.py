@@ -22,7 +22,7 @@ from td3.utils.graph_utils import plot_price_history
 from td3.utils.logs.logger import LoggerFactory
 from td3.utils.torch_utils import count_params
 
-EXPERIMENT_DIR = "simulations/train/run_2026-04-28_18-30-52/"
+EXPERIMENT_DIR = "simulations/train/run_2026-04-29_15-48-16/"
 logger = LoggerFactory.create_logger(__name__)
 
 def get_model_paths() -> Tuple[List[str], List[str]]:
@@ -102,8 +102,17 @@ def main() -> None:
             state_dim=int(env.observation_space.shape[0]),
             action_dim=env.action_space.shape[0],
             noise_anneal_episodes=app_config.number_of_episodes,
+            lr=app_config.lr,
+            dropout_rate=app_config.dropout_rate,
+            normalization=app_config.normalization,
         )
         td3_agent.load_model(model_path)
+        # Put networks into evaluation mode for deterministic inference:
+        # - disables Dropout
+        # - makes BatchNorm use running estimates instead of batch stats
+        td3_agent.actor.eval()
+        td3_agent.critic1.eval()
+        td3_agent.critic2.eval()
         logger.info("Model parameters: %s", count_params(td3_agent.actor))
 
         state = env.reset()

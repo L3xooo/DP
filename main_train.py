@@ -34,7 +34,7 @@ def main() -> None:
     data_3d_features, data_3d_prices, tickers, features, dates = dp.load_data(app_config)
     plot_price_history(data_3d_prices, tickers, dates, save_path=plots_dir + "/price_history.png")
 
-    logger.debug("Dates included: %s", dates)
+    logger.debug("Dates included: %s", len(dates))
     logger.info("Tickers included: %s", tickers)
     logger.debug("Features included: %s", features)
 
@@ -52,6 +52,9 @@ def main() -> None:
             state_dim=int(env.observation_space.shape[0]),
             action_dim=env.action_space.shape[0],
             noise_anneal_episodes=app_config.number_of_episodes,
+            lr=app_config.lr,
+            dropout_rate=app_config.dropout_rate,
+            normalization=app_config.normalization,
         )
         logger.info("Model parameters: %s", count_params(td3_agent.actor))
 
@@ -81,7 +84,7 @@ def main() -> None:
                     logger.info("Total reward: %s", episode_metrics.total_reward)
                     logger.debug("State: %s", state)
                     break
-
+                logger.debug("State: %s", state)
                 action, _ = td3_agent.select_action(state)
                 # logger.debug("Action: %s", action)
                 new_state, reward_val, done, _, _ = env.step(action)
