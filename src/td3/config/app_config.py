@@ -36,7 +36,7 @@ class AppConfig:
 
     ticker_config: TickerConfig = TickerConfig("10_TICKERS")
 
-    data_dir: str = "../indicators"
+    data_dir: str = "/home/teodora/Desktop/workspace/DP/indicators_depr"
     start_date: str = "2016-05-01"
     end_date: str = "2019-01-18"
     initial_cash: float = 10000.0
