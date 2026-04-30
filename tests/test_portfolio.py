@@ -52,28 +52,43 @@ class TestPortfolioGetState:
     def test_get_state_returns_expected(self):
         env, features, N, F = _make_env()
         env.current_step = 2
+        weights = np.zeros(N + 1, dtype=np.float32)
+        weights[0] = 1.0
+        env.weights = PrevCurr(prev=weights.copy(), curr=weights.copy())
 
-        expected = features[2].flatten().astype(np.float32)
+        expected = np.concatenate(
+            [features[2].flatten(), weights],
+            axis=0,
+        ).astype(np.float32)
         got = env._get_state()
 
         np.testing.assert_allclose(got, expected)
         assert got.dtype == np.float32
-        assert got.shape == (N * F,)
+        assert got.shape == (N * F + N + 1,)
 
     def test_get_state_next_returns_expected(self):
         env, features, N, F = _make_env()
         env.current_step = 2
+        weights = np.zeros(N + 1, dtype=np.float32)
+        weights[0] = 1.0
+        env.weights = PrevCurr(prev=weights.copy(), curr=weights.copy())
 
-        expected = features[3].flatten().astype(np.float32)
+        expected = np.concatenate(
+            [features[3].flatten(), weights],
+            axis=0,
+        ).astype(np.float32)
         got = env._get_state_next()
 
         np.testing.assert_allclose(got, expected)
         assert got.dtype == np.float32
-        assert got.shape == (N * F,)
+        assert got.shape == (N * F + N + 1,)
 
     def test_get_state_next_raises_index_error_when_out_of_bounds(self):
         env, features, N, F = _make_env()
         env.current_step = env.features.shape[0] - 1  # last step
+        weights = np.zeros(N + 1, dtype=np.float32)
+        weights[0] = 1.0
+        env.weights = PrevCurr(prev=weights.copy(), curr=weights.copy())
 
         with pytest.raises(IndexError):
             _ = env._get_state_next()
@@ -221,7 +236,10 @@ class TestPortfolioReset:
         assert env.portfolio_value.curr == DEFAULT_PORTFOLIO_VALUE
         assert env.portfolio_cash.curr == DEFAULT_PORTFOLIO_VALUE
 
-        expected_obs = features[0].flatten().astype(np.float32)
+        expected_obs = np.concatenate(
+            [features[0].flatten(), env.weights.curr],
+            axis=0,
+        ).astype(np.float32)
         np.testing.assert_allclose(obs, expected_obs)
 
 
@@ -234,10 +252,16 @@ class TestPortfolioReward:
             "_calculate_portfolio_value",
             lambda prices=None: 0.0 if prices is None else 1.0,
         )
+        env.weights = PrevCurr(
+            prev=np.array([1.0, 0.0], dtype=np.float32),
+            curr=np.array([0.5, 0.5], dtype=np.float32),
+        )
 
         r = env._calculate_reward()
         # log((1.0 + 1e-12) / (0.0 + 1e-12)) ≈ log(1e12) ≈ 27.631
         expected = np.log((1.0 + 1e-12) / (0.0 + 1e-12))
+        turnover = np.sum(np.abs(env.weights.curr - env.weights.prev))
+        expected -= 0.002 * turnover
         assert r == pytest.approx(expected, rel=1e-6)
 
     @pytest.mark.parametrize(
@@ -259,7 +283,13 @@ class TestPortfolioReward:
             return pv if prices is None else next_pv
 
         monkeypatch.setattr(env, "_calculate_portfolio_value", fake_calc_portfolio_value)
+        env.weights = PrevCurr(
+            prev=np.array([0.6, 0.4], dtype=np.float32),
+            curr=np.array([0.7, 0.3], dtype=np.float32),
+        )
 
         r = env._calculate_reward()
 
+        turnover = np.sum(np.abs(env.weights.curr - env.weights.prev))
+        expected -= 0.002 * turnover
         assert r == pytest.approx(expected, rel=0, abs=1e-10)

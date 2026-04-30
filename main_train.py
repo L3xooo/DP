@@ -84,7 +84,7 @@ def main() -> None:
                     logger.info("Total reward: %s", episode_metrics.total_reward)
                     logger.debug("State: %s", state)
                     break
-                logger.debug("State: %s", state)
+                logger.debug("State: %s | Size: %s", state, len(state))
                 action, _ = td3_agent.select_action(state)
                 # logger.debug("Action: %s", action)
                 new_state, reward_val, done, _, _ = env.step(action)

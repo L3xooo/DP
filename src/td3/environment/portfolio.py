@@ -28,8 +28,8 @@ class PortfolioEnv(gym.Env):
     cash.
 
     Observation space:
-        Box of shape ``(num_assets * feature_dim,)`` — the flattened feature matrix
-        for the current time step.
+        Box of shape ``(num_assets * feature_dim + num_assets + 1,)`` — the flattened
+        feature matrix for the current time step followed by current portfolio weights.
 
     Action space:
         Box of shape ``(num_assets + 1,)`` in ``[0, 1]`` — target portfolio weights
@@ -77,7 +77,7 @@ class PortfolioEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(self.num_assets * self.feature_dim,),
+            shape=(self.num_assets * self.feature_dim + self.num_assets + 1,),
             dtype=np.float32,
         )
         # self.logger.info("State shape: %s", self.features.shape)
@@ -103,12 +103,22 @@ class PortfolioEnv(gym.Env):
 
     def _get_state(self):
         """Returns the current state as a flattened array of features."""
-        return np.concatenate([self._get_features_current().flatten()], axis=0).astype(np.float32)
+        if self.weights is None:
+            raise ValueError("weights not initialized; call reset() before requesting state")
+        return np.concatenate([
+            self._get_features_current().flatten(),
+            self.weights.curr,
+        ], axis=0).astype(np.float32)
 
     def _get_state_next(self):
         # self.logger.info("getting next state")
         """Returns the next state as a flattened array of features."""
-        return np.concatenate([self._get_features_next().flatten()], axis=0).astype(np.float32)
+        if self.weights is None:
+            raise ValueError("weights not initialized; call reset() before requesting state")
+        return np.concatenate([
+            self._get_features_next().flatten(),
+            self.weights.curr,
+        ], axis=0).astype(np.float32)
 
     def _calculate_portfolio_value(self, prices: np.ndarray = None) -> float:
         """Calculates the current portfolio value based on cash and shares held."""
@@ -137,7 +147,13 @@ class PortfolioEnv(gym.Env):
         portfolio_value = self._calculate_portfolio_value()
         next_portfolio_value = self._calculate_portfolio_value(self._get_prices(1))
         self.logger.info(f"Portfolio value Current t: {portfolio_value} | Next t+1: {next_portfolio_value}" )
-        return np.log((next_portfolio_value + 1e-12) / (portfolio_value + 1e-12))
+        log_return = np.log((next_portfolio_value + 1e-12) / (portfolio_value + 1e-12))
+
+        turnover = 0.0
+        if self.weights is not None:
+            turnover = float(np.sum(np.abs(self.weights.curr - self.weights.prev)))
+        turnover_penalty = 0.002
+        return log_return - turnover_penalty * turnover
 
     def reset(self, seed=None, options=None):
         """

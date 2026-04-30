@@ -31,7 +31,7 @@ def provide_test_graphs(
 
     plot_multi_line_chart(
         data_series=[
-            [step.reward for step in run.episodes[:-1]] for run in experiment_metrics.runs
+            [step.reward for step in run.episodes[:-2]] for run in experiment_metrics.runs
         ],
         labels=model_names,
         title="Cumulative reward",
@@ -43,7 +43,7 @@ def provide_test_graphs(
 
     plot_multi_line_chart(
         data_series=[
-            [step.portfolio_value for step in run.episodes[:-1]] for run in experiment_metrics.runs
+            [step.portfolio_value for step in run.episodes[:-2]] for run in experiment_metrics.runs
         ],
         labels=model_names,
         title="Cumulative portfolio value",

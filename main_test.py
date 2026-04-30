@@ -22,7 +22,7 @@ from td3.utils.graph_utils import plot_price_history
 from td3.utils.logs.logger import LoggerFactory
 from td3.utils.torch_utils import count_params
 
-EXPERIMENT_DIR = "simulations/train/run_2026-04-29_15-48-16/"
+EXPERIMENT_DIR = "simulations/train/run_2026-04-30_11-43-11/"
 logger = LoggerFactory.create_logger(__name__)
 
 def get_model_paths() -> Tuple[List[str], List[str]]:
