@@ -80,6 +80,8 @@ def run_training(
             noise_init=app_config.noise_init,
             noise_final=app_config.noise_final,
             noise_anneal_episodes=app_config.noise_anneal_episodes,
+            dropout_rate=app_config.dropout_rate,
+            normalization=app_config.normalization,
         )
 
         run_metrics = experiment_metrics.start_run(run_id=str(iteration))
@@ -93,7 +95,7 @@ def run_training(
                     episode_metrics.aggregate()
                     break
 
-                td3_agent.set_episode(episode)
+                td3_agent.set_episode_and_noise(episode)
                 action, _ = td3_agent.select_action(state)
 
                 if log_actions:

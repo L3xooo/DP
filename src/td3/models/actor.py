@@ -18,12 +18,44 @@ class Actor(nn.Module):
     Used as part of the TD3 (Twin Delayed Deep Deterministic Policy Gradient) algorithm.
     """
 
-    def __init__(self, input_dim: int, action_dim: int, hidden_size: int = 256):
+    def __init__(
+        self,
+        input_dim: int,
+        action_dim: int,
+        hidden_size: int = 256,
+        dropout_rate: float = 0.0,
+        normalization: str | None = "layer",
+    ):
+        """
+        Actor with optional dropout and normalization layers.
+
+        Args:
+            input_dim: Dimension of flattened input state.
+            action_dim: Number of action logits produced.
+            hidden_size: Width of hidden layers.
+            dropout_rate: Dropout probability applied after hidden layers during training.
+            normalization: One of {None, 'batch', 'layer'}; adds BatchNorm1d or LayerNorm
+                           after fully-connected layers which stabilizes activations across
+                           changing input distributions (helps generalization across regimes).
+        """
         super(Actor, self).__init__()
         self.input_dim = input_dim
         self.fc1 = nn.Linear(input_dim, hidden_size)
         self.fc2 = nn.Linear(hidden_size, hidden_size)
         self.out = nn.Linear(hidden_size, action_dim)
+
+        self.normalization = normalization
+        if normalization == "batch":
+            self.norm1 = nn.BatchNorm1d(hidden_size)
+            self.norm2 = nn.BatchNorm1d(hidden_size)
+        elif normalization == "layer":
+            self.norm1 = nn.LayerNorm(hidden_size)
+            self.norm2 = nn.LayerNorm(hidden_size)
+        else:
+            self.norm1 = nn.Identity()
+            self.norm2 = nn.Identity()
+
+        self.dropout = nn.Dropout(p=dropout_rate) if dropout_rate and dropout_rate > 0.0 else nn.Identity()
 
     def forward(self, state: Tensor) -> Tensor:
         """
@@ -40,7 +72,15 @@ class Actor(nn.Module):
             x = state.view(state.size(0), -1)
         else:
             x = state
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        # vystupna vrstva zabezpeci, ze su hodnoty od 0 do 1
+
+        x = self.fc1(x)
+        x = self.norm1(x)
+        x = F.relu(x)
+        x = self.dropout(x)
+
+        x = self.fc2(x)
+        x = self.norm2(x)
+        x = F.relu(x)
+        x = self.dropout(x)
+
         return torch.sigmoid(self.out(x))

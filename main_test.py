@@ -20,8 +20,9 @@ from td3.providers.graph_provider import provide_test_graphs
 from td3.utils.file_utils import create_experiment_directories, RunType
 from td3.utils.graph_utils import plot_price_history
 from td3.utils.logs.logger import LoggerFactory
+from td3.utils.torch_utils import count_params
 
-EXPERIMENT_DIR = "simulations/train/run_2026-04-11_09-28-09/"
+EXPERIMENT_DIR = "simulations/train/run_2026-04-29_15-48-16/"
 logger = LoggerFactory.create_logger(__name__)
 
 def get_model_paths() -> Tuple[List[str], List[str]]:
@@ -60,7 +61,7 @@ def export_weights(
     """
 
     for run, name in zip(experiment_metrics.runs, model_names):
-        data_series = [step.weights for step in run.episodes[:-1]]
+        data_series = [step.weights for step in run.episodes[:-2]]
         episode_dates = dates[: len(data_series)]
         save_path = os.path.join(weights_dir, f"weights_{name}.csv")
         with open(save_path, "w") as f:
@@ -75,7 +76,7 @@ def main() -> None:
     Main function for the TD3 training pipeline.
     """
     app_config = AppConfig.load_from_train_config(
-        path=f"{EXPERIMENT_DIR}/config.json", start_date="2019-01-22", end_date="2019-01-22")
+        path=f"{EXPERIMENT_DIR}/config.json", start_date="2021-06-1", end_date="2024-12-30")
     model_names, model_paths = get_model_paths()
 
     experiment_metrics = ExperimentMetrics()
@@ -84,11 +85,11 @@ def main() -> None:
     )
 
     data_3d_features, data_3d_prices, tickers, features, all_dates = DataProcessor(data_dir=app_config.data_dir).load_data(app_config)
-    # plot_price_history(data_3d_prices, tickers, all_dates, save_path=plots_dir + "/price_history.png")
+    plot_price_history(data_3d_prices, tickers, all_dates, save_path=plots_dir + "/price_history.png")
+    steps, _, _= data_3d_features.shape
+
     logger.info("Loaded data with features of shape %s and prices of shape %s", data_3d_features.shape, data_3d_prices.shape)
-    steps , _, _= data_3d_features.shape
     logger.info("Data contains %s steps", steps)
-    logger.info(all_dates)
 
     for model_path in model_paths:
         env = PortfolioEnv(
@@ -101,8 +102,18 @@ def main() -> None:
             state_dim=int(env.observation_space.shape[0]),
             action_dim=env.action_space.shape[0],
             noise_anneal_episodes=app_config.number_of_episodes,
+            lr=app_config.lr,
+            dropout_rate=app_config.dropout_rate,
+            normalization=app_config.normalization,
         )
         td3_agent.load_model(model_path)
+        # Put networks into evaluation mode for deterministic inference:
+        # - disables Dropout
+        # - makes BatchNorm use running estimates instead of batch stats
+        td3_agent.actor.eval()
+        td3_agent.critic1.eval()
+        td3_agent.critic2.eval()
+        logger.info("Model parameters: %s", count_params(td3_agent.actor))
 
         state = env.reset()
         done = False
@@ -112,24 +123,26 @@ def main() -> None:
             if done:
                 break
 
-            logger.info("Executing action for on date %s step %s", all_dates[env.current_step], env.current_step)
+            # logger.info("Executing action for on date %s step %s", all_dates[env.current_step], env.current_step)
             action, noisy_logits = td3_agent.select_action(state, None, None, False)
+            logger.info("Action: %s", action)
+            logger.info("Noisy logits: %s", noisy_logits)
+            new_state, reward_val, done, _, _ = env.step(action)
+            if new_state is not None:
+                state = new_state
+                total_reward = (
+                    run_metrics.episodes[-2].reward if len(run_metrics.episodes) > 1 else 0.0
+                ) + float(reward_val)
 
-            new_state, reward_val, done, trunc, info = env.step_test(action)
-            logger.info(done)
-            state = new_state
-            total_reward = (
-                run_metrics.episodes[-2].reward if len(run_metrics.episodes) > 1 else 0.0
-            ) + float(reward_val)
-            step_metrics.set_basic(total_reward, env.portfolio_value.curr, action)
+                step_metrics.set_basic(total_reward, env.portfolio_value.curr, action)
 
-    # provide_test_graphs(
-    #     plots_dir,
-    #     weights_dir,
-    #     experiment_metrics,
-    #     model_names,
-    #     app_config.ticker_config.tickers_with_cash,
-    # )
+    provide_test_graphs(
+        plots_dir,
+        weights_dir,
+        experiment_metrics,
+        model_names,
+        app_config.ticker_config.tickers_with_cash,
+    )
     export_weights(experiment_metrics, model_names, ["Cash"] + tickers, weights_dir, all_dates)
 
 

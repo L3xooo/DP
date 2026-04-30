@@ -136,6 +136,7 @@ class PortfolioEnv(gym.Env):
 
         portfolio_value = self._calculate_portfolio_value()
         next_portfolio_value = self._calculate_portfolio_value(self._get_prices(1))
+        self.logger.info(f"Portfolio value Current t: {portfolio_value} | Next t+1: {next_portfolio_value}" )
         return np.log((next_portfolio_value + 1e-12) / (portfolio_value + 1e-12))
 
     def reset(self, seed=None, options=None):
@@ -175,73 +176,52 @@ class PortfolioEnv(gym.Env):
         self.shares.set_prev_from_curr()
         self.assets_prices.set_prev_from_curr()
 
+        self.logger.info("Prices: %s", self._get_prices())
+        try:
+            self.logger.info("Next prices: %s", self._get_prices(1))
+        except IndexError:
+            self.logger.warn("Cannot retrieve the next prices index error")
         # Calculate the current portfolio value with previous cash and shares held
         self.portfolio_value.set_curr(
             self.portfolio_cash.prev + self._get_prices().dot(self.shares.prev)
         )
+        self.logger.debug("PortfolioValue Prev: %s | Curr: %s ", self.portfolio_value.prev, self.portfolio_value.curr)
 
         # Do the changes in portfolio based on the new weights
         self.weights.set_curr(action)
+        self.logger.debug("Weights Prev: %s | Curr: %s", self.weights.prev, self.weights.curr)
+
         self.portfolio_cash.set_curr(self.portfolio_value.curr * self.weights.curr[0])
+        self.logger.debug("Cash Prev: %s | Curr: %s ", self.portfolio_cash.prev, self.portfolio_cash.curr)
+
         self.assets_prices.set_curr(self.weights.curr[1:] * self.portfolio_value.curr)
+        self.logger.debug("Asset Prices Prev: %s | Curr: %s ", self.assets_prices.prev, self.assets_prices.curr)
 
         # Calculate how many shares per asset with new prices
         self.shares.set_curr(self.assets_prices.curr / self._get_prices())
-        reward = self._calculate_reward()
 
+        reward = 0
+        try:
+            reward = self._calculate_reward()
+        except IndexError:
+            self.logger.warn("Error on reward calculation")
+
+        next_state = None
+        try:
+            next_state = self._get_state_next()
+        except IndexError:
+            self.logger.warn("Error on getting next state")
+
+        episode_end = self.current_step >= self.num_steps - 1
         self.current_step += 1
 
         return (
-            self._get_state_next(),
+            next_state,
             float(reward),
-            self.current_step + 1 >= self.num_steps - 1,
+            episode_end,
             False,
             {},
         )
 
     def step(self, action):
         return self._step_v2(action)
-
-    def step_test(self, action):
-
-        self.weights.set_prev_from_curr()
-        self.portfolio_value.set_prev_from_curr()
-        self.portfolio_cash.set_prev_from_curr()
-        self.shares.set_prev_from_curr()
-        self.assets_prices.set_prev_from_curr()
-
-        # Calculate the current portfolio value with previous cash and shares held
-        self.portfolio_value.set_curr(
-            self.portfolio_cash.prev + self._get_prices().dot(self.shares.prev)
-        )
-
-        # Do the changes in portfolio based on the new weights
-        self.weights.set_curr(action)
-        self.portfolio_cash.set_curr(self.portfolio_value.curr * self.weights.curr[0])
-        self.assets_prices.set_curr(self.weights.curr[1:] * self.portfolio_value.curr)
-
-        # Calculate how many shares per asset with new prices
-        self.shares.set_curr(self.assets_prices.curr / self._get_prices())
-        reward = 0
-        try:
-            reward = self._calculate_reward()
-        except IndexError:
-            self.logger.info("Error on reward calculation")
-
-        state_next = None
-
-        try:
-            state_next = self._get_state_next()
-        except IndexError:
-            self.logger.info("Error on getting next state")
-
-        episode_end = self.current_step >= self.num_steps - 1
-        self.current_step += 1
-
-        return (
-            state_next,
-            float(reward),
-            episode_end,
-            False,
-            {},
-        )

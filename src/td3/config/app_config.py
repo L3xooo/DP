@@ -29,10 +29,10 @@ class AppConfig:
     and the target ticker universe.
     """
 
-    iterations: int = 3
-    number_of_episodes: int = 300
-    batch_size: int = 512
-    replay_buffer_size: int = 100_000
+    iterations: int = 1
+    number_of_episodes: int = 100
+    batch_size: int = 128
+    replay_buffer_size: int = 40_000
 
     ticker_config: TickerConfig = TickerConfig("10_TICKERS")
 
@@ -85,11 +85,12 @@ class AppConfig:
     )
 
     hidden_size: int = 512
-    lr: float = 3e-4
+    lr: float = 1e-4
     noise_init: float = 0.3
     noise_final: float = 0.05
-    noise_anneal_episodes: int = 500
     device: Optional[str] = None
+    dropout_rate: float = 0.0
+    normalization: Optional[str] = "layer"
 
     def __post_init__(self):
         """
@@ -147,7 +148,7 @@ class AppConfig:
         Returns:
             An instance of AppConfig with values loaded from the file and overrides applied.
         """
-
+        cls.logger.info("Loading AppConfig from %s", path)
         path = Path(path)
         if path.is_dir():
             path = path / "config.json"
@@ -189,7 +190,7 @@ class AppConfig:
         d["start_date"] = start_date
 
         # Test start date and test end date
-        # check_if_later_date(sooner_date=start_date, later_date=end_date)
+        check_if_later_date(sooner_date=start_date, later_date=end_date)
         d["end_date"] = end_date
 
         d["number_of_episodes"] = 1

@@ -61,6 +61,7 @@ class EpisodeMetrics:
 
     steps: List[StepMetrics] = field(default_factory=list)
     total_reward: float = 0.0
+    exploration_noise: Optional[float] = None
     final_portfolio_value: float = 0.0
     final_weights: List[List[float]] = field(default_factory=list)
     actor_loss: Optional[float] = None

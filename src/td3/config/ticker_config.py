@@ -65,11 +65,17 @@ TickerConfigName = Literal[
     "ALL_TICKERS",
     "LESS_TICKERS",
     "RANDOM_TICKERS",
+    "1_TICKER",
+    "TEST_SET"
 ]
 
 TICKER_PRESETS: Dict[TickerConfigName, List[str]] = {
     "LESS_TICKERS": LESS_TICKERS.split(),
     "ALL_TICKERS": ALL_TICKERS.split(),
+    "TEST_SET": [
+        "ED", "DUK", "SO", "AEP", "WEC",
+        "KO", "CL", "KMB", "GIS", "CPB"
+    ],
     "ANOTHER_10_TICKERS": [
         "BRK.B",
         "UNH",
@@ -94,6 +100,7 @@ TICKER_PRESETS: Dict[TickerConfigName, List[str]] = {
         "JNJ",
         "XOM",
     ],
+    "1_TICKER" : ["AAPL"]
 }
 
 
