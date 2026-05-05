@@ -114,7 +114,6 @@ def plot_multi_line_chart(
         save_path = os.path.join(save_dir, image_name)
         plt.savefig(save_path, dpi=dpi)
 
-    plt.show()
     plt.close()
 
 

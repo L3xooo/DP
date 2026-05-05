@@ -14,9 +14,10 @@ from td3.models.td3 import TD3
 from td3.data.data_processor import DataProcessor
 from td3.providers.graph_provider import provide_train_graphs
 from td3.utils.file_utils import create_experiment_directories, create_directory
-from td3.utils.graph_utils import plot_episode_weights, plot_price_history
+from td3.utils.graph_utils import plot_episode_weights, plot_price_history, plot_multi_line_chart
 from td3.utils.logs.logger import LoggerFactory
 from td3.utils.torch_utils import count_params
+from itertools import accumulate
 
 logger = LoggerFactory.create_logger(__name__)
 
@@ -26,7 +27,7 @@ def main() -> None:
     Main function to run the TD3 training loop for portfolio management.
     """
     experiment_metrics = ExperimentMetrics()
-    experiment_dir, plots_dir, models_dir, weights_dir = create_experiment_directories()
+    experiment_dir, plots_dir, models_dir, weights_dir, rewards_dir = create_experiment_directories()
     app_config = AppConfig()
     app_config.to_json(experiment_dir)
 
@@ -74,6 +75,16 @@ def main() -> None:
                     pass
                     # logger.error("Cannot log the Date due Index Error %d/%d", env.current_step, len(dates))
                 if done:
+                    cumulative_rewards = list(accumulate(episode_metrics.rewards))
+                    plot_multi_line_chart(
+                        data_series=[cumulative_rewards],
+                        labels=["Cumulative Reward"],
+                        title=f"Cumulative Reward - Episode {episode}",
+                        image_name=f"episode_{episode}_cumulative_reward.jpg",
+                        save_dir=rewards_dir + "/run_" + str(iteration),
+                        x_label="Step",
+                        y_label="Cumulative Reward",
+                    )
                     plot_episode_weights(
                         episode_metrics.final_weights,
                         app_config.ticker_config.tickers_with_cash,

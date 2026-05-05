@@ -60,6 +60,7 @@ class EpisodeMetrics:
     """
 
     steps: List[StepMetrics] = field(default_factory=list)
+    rewards: List[float] = field(default_factory=list)
     total_reward: float = 0.0
     exploration_noise: Optional[float] = None
     final_portfolio_value: float = 0.0
@@ -82,7 +83,8 @@ class EpisodeMetrics:
             metrics: StepMetrics instance from the latest environment step.
         """
         self.steps.append(metrics)
-        self.total_reward = metrics.reward
+        self.rewards.append(metrics.reward)
+        self.total_reward += metrics.reward
         self.final_portfolio_value = metrics.portfolio_value
         self.final_weights.append(metrics.weights)
 
@@ -115,7 +117,7 @@ class EpisodeMetrics:
         self.q2_mean = float(np.mean(q2s)) if q2s else None
         self.target_q_mean = float(np.mean(tqs)) if tqs else None
 
-        self.total_reward = float(sum(s.reward for s in self.steps))
+        self.total_reward = float(sum(self.rewards))
         self.final_portfolio_value = float(self.steps[-1].portfolio_value) if self.steps else 0.0
         self.steps = []
 

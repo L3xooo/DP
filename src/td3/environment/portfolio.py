@@ -137,7 +137,14 @@ class PortfolioEnv(gym.Env):
         portfolio_value = self._calculate_portfolio_value()
         next_portfolio_value = self._calculate_portfolio_value(self._get_prices(1))
         self.logger.info(f"Portfolio value Current t: {portfolio_value} | Next t+1: {next_portfolio_value}" )
-        return np.log((next_portfolio_value + 1e-12) / (portfolio_value + 1e-12))
+        log_return = np.log((next_portfolio_value + 1e-12) / (portfolio_value + 1e-12))
+        #
+        # turnover = 0.0
+        # if self.weights is not None:
+        #     turnover = float(np.sum(np.abs(self.weights.curr - self.weights.prev)))
+        # turnover_penalty = 0.0035
+        # return log_return - turnover_penalty * turnover
+        return log_return
 
     def reset(self, seed=None, options=None):
         """

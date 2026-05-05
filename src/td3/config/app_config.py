@@ -31,8 +31,8 @@ class AppConfig:
 
     iterations: int = 1
     number_of_episodes: int = 100
-    batch_size: int = 128
-    replay_buffer_size: int = 40_000
+    batch_size: int = 512
+    replay_buffer_size: int = 60_000
 
     ticker_config: TickerConfig = TickerConfig("10_TICKERS")
 

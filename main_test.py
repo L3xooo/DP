@@ -22,7 +22,7 @@ from td3.utils.graph_utils import plot_price_history
 from td3.utils.logs.logger import LoggerFactory
 from td3.utils.torch_utils import count_params
 
-EXPERIMENT_DIR = "simulations/train/run_2026-04-29_15-48-16/"
+EXPERIMENT_DIR = "simulations/train/run_2026-05-04_21-14-08/"
 logger = LoggerFactory.create_logger(__name__)
 
 def get_model_paths() -> Tuple[List[str], List[str]]:
@@ -80,7 +80,7 @@ def main() -> None:
     model_names, model_paths = get_model_paths()
 
     experiment_metrics = ExperimentMetrics()
-    experiment_dir, plots_dir, models_dir, weights_dir = create_experiment_directories(
+    experiment_dir, plots_dir, models_dir, weights_dir, _ = create_experiment_directories(
         run_type=RunType.TEST
     )
 
@@ -107,9 +107,6 @@ def main() -> None:
             normalization=app_config.normalization,
         )
         td3_agent.load_model(model_path)
-        # Put networks into evaluation mode for deterministic inference:
-        # - disables Dropout
-        # - makes BatchNorm use running estimates instead of batch stats
         td3_agent.actor.eval()
         td3_agent.critic1.eval()
         td3_agent.critic2.eval()
