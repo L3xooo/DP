@@ -1,0 +1,19 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+unsafe-fixes = true
+
+[tool.ruff.lint]
+preview = true
+select = ["E", "W", "N", "D"]
+ignore = ["D204"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "preserve"
