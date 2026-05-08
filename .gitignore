@@ -2,3 +2,14 @@ all_data.csv
 app.log
 Untitled.pdf
 plots/
+
+.venv/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+simulations/
+test_simulations/
+model_viz
+.DS_Store
+weights.csv
