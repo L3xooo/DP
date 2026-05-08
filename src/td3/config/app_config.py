@@ -29,7 +29,7 @@ class AppConfig:
     and the target ticker universe.
     """
 
-    iterations: int = 1
+    iterations: int = 3
     number_of_episodes: int = 100
     batch_size: int = 512
     replay_buffer_size: int = 60_000
