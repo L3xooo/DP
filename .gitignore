@@ -13,3 +13,9 @@ test_simulations/
 model_viz
 .DS_Store
 weights.csv
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
