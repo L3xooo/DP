@@ -35,9 +35,9 @@ def main() -> None:
     data_3d_features, data_3d_prices, tickers, features, dates = dp.load_data(app_config)
     plot_price_history(data_3d_prices, tickers, dates, save_path=plots_dir + "/price_history.png")
 
-    logger.debug("Dates included: %s", len(dates))
+    logger.info("Dates included: %s", len(dates))
     logger.info("Tickers included: %s", tickers)
-    logger.debug("Features included: %s", features)
+    logger.info("Features included: %s", features)
 
     for iteration in range(app_config.iterations):
         logger.info("Starting iteration %d", iteration)
@@ -74,11 +74,6 @@ def main() -> None:
             done = False
 
             while True:
-                try:
-                    logger.debug("Date: %s", dates[env.current_step])
-                except IndexError:
-                    pass
-                    # logger.error("Cannot log the Date due Index Error %d/%d", env.current_step, len(dates))
                 if done:
                     cumulative_rewards = list(accumulate(episode_metrics.rewards))
                     plot_multi_line_chart(
@@ -98,7 +93,6 @@ def main() -> None:
                     )
                     episode_metrics.aggregate()
                     logger.info("Total reward: %s", episode_metrics.total_reward)
-                    logger.debug("State: %s", state)
                     break
                 logger.debug("State: %s", state)
                 action, _ = td3_agent.select_action(state)
@@ -118,7 +112,7 @@ def main() -> None:
                         )
                     )
 
-        td3_agent.save_model(models_dir, filename=f'td3_model_run_{iteration}.pth')
+        # td3_agent.save_model(models_dir, filename=f'td3_model_run_{iteration}.pth')
     provide_train_graphs(plots_dir, experiment_metrics)
 
 if __name__ == "__main__":

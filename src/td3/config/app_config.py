@@ -30,9 +30,9 @@ class AppConfig:
     """
 
     iterations: int = 1
-    number_of_episodes: int = 50
-    batch_size: int = 512
-    replay_buffer_size: int = 30_000
+    number_of_episodes: int = 100
+    batch_size: int = 256
+    replay_buffer_size: int = 60_000
 
     ticker_config: TickerConfig = TickerConfig("10_TICKERS")
 
@@ -85,18 +85,21 @@ class AppConfig:
     )
 
     hidden_size: int = 512
-    lr: float = 1e-4
-    noise_init: float = 0.3
+    lr: float = 1e-5
+    noise_init: float = 0.4
     noise_final: float = 0.08
     device: Optional[str] = None
     dropout_rate: float = 0.0
     normalization: Optional[str] = "cross"
+    lookback_window: int = 5
 
     def __post_init__(self):
         """
         Set the compute device after initialization.
         Defaults to CUDA if available, otherwise CPU. Skips detection if device was explicitly set.
         """
+        if self.lookback_window < 1:
+            raise ValueError("lookback_window must be >= 1")
         if self.device is not None:
             return
         if torch.cuda.is_available():

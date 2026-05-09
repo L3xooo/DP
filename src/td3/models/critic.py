@@ -25,7 +25,7 @@ class Critic(nn.Module):
         action_dim: int,
         hidden_size: int = 64,
         dropout_rate: float = 0.0,
-        normalization: str | None = "layer",
+        normalization: str | None = "cross",
     ):
         super(Critic, self).__init__()
         # Combine state and action as input to the critic

@@ -26,7 +26,7 @@ class Actor(nn.Module):
         action_dim: int,
         hidden_size: int = 256,
         dropout_rate: float = 0.0,
-        normalization: str | None = "layer",
+        normalization: str | None = "cross",
     ):
         """
         Actor with optional dropout and normalization layers.

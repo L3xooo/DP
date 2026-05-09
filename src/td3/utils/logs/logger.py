@@ -59,7 +59,7 @@ class LoggerFactory:
         LoggerFactory.clear_log()
         logger = logging.getLogger(name)
         logger.setLevel(logging.DEBUG)
-        logger.disabled = True
+        logger.disabled = False
 
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(ColoredFormatter())

@@ -37,6 +37,7 @@ The central configuration for a training run. Key parameters you may want to adj
 | `noise_init` / `noise_final` | Initial and final exploration noise (linear decay) |
 | `dropout_rate` | Dropout rate applied in actor and critic networks |
 | `normalization` | Normalization type applied in networks (`layer`, `batch`, `cross`, or `None`) |
+| `lookback_window` | Number of past days stacked into the state (>= 1) |
 | `device` | Compute device (`cuda`, `cpu`, or `None` for auto-detect) |
 | `filter_out` | Features excluded from the state observation |
 | `filter_in` | Technical indicators included in the state observation |
