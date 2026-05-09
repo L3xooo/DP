@@ -7,6 +7,8 @@ Author: Peter Likavec
 import torch.nn as nn
 import torch
 
+from td3.models.cross_norm import CrossNorm1d
+
 
 class Critic(nn.Module):
     """
@@ -39,6 +41,9 @@ class Critic(nn.Module):
         elif normalization == "layer":
             self.norm1 = nn.LayerNorm(hidden_size)
             self.norm2 = nn.LayerNorm(hidden_size)
+        elif normalization == "cross":
+            self.norm1 = CrossNorm1d(hidden_size)
+            self.norm2 = CrossNorm1d(hidden_size)
         else:
             self.norm1 = nn.Identity()
             self.norm2 = nn.Identity()

@@ -61,6 +61,11 @@ def main() -> None:
 
         run_metrics = experiment_metrics.start_run(run_id=str(iteration))
         for episode in range(app_config.number_of_episodes):
+
+            if episode % 10 == 0:
+                logger.info("Saving model in episode %d", episode)
+                td3_agent.save_model(models_dir, filename=f'td3_model_run_{iteration}_{episode}.pth')
+
             logger.info("Starting episode %d / %d", episode + 1, app_config.number_of_episodes)
             episode_metrics = run_metrics.start_episode()
             state = env.reset()

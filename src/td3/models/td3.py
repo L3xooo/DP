@@ -44,8 +44,8 @@ class TD3:
         noise_init=0.3,
         noise_final=0.05,
         noise_anneal_episodes=500,
-        noise_sigmoid_midpoint=0.6,
-        noise_sigmoid_steepness=12.0,
+        noise_sigmoid_midpoint=0.7,
+        noise_sigmoid_steepness=6.0,
         # regularization options
         dropout_rate: float = 0.0,
         normalization: str | None = "layer",
@@ -107,10 +107,26 @@ class TD3:
         ).to(self.device)
 
         self.target_actor = Actor(
-            input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size
+            input_dim=state_dim,
+            action_dim=action_dim,
+            hidden_size=hidden_size,
+            dropout_rate=dropout_rate,
+            normalization=normalization,
         ).to(self.device)
-        self.target_critic1 = Critic(state_dim, action_dim, hidden_size).to(self.device)
-        self.target_critic2 = Critic(state_dim, action_dim, hidden_size).to(self.device)
+        self.target_critic1 = Critic(
+            state_dim,
+            action_dim,
+            hidden_size,
+            dropout_rate=dropout_rate,
+            normalization=normalization,
+        ).to(self.device)
+        self.target_critic2 = Critic(
+            state_dim,
+            action_dim,
+            hidden_size,
+            dropout_rate=dropout_rate,
+            normalization=normalization,
+        ).to(self.device)
 
         self.mu = np.zeros(action_dim)
 

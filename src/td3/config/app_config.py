@@ -29,15 +29,15 @@ class AppConfig:
     and the target ticker universe.
     """
 
-    iterations: int = 3
-    number_of_episodes: int = 100
+    iterations: int = 1
+    number_of_episodes: int = 50
     batch_size: int = 512
-    replay_buffer_size: int = 60_000
+    replay_buffer_size: int = 30_000
 
     ticker_config: TickerConfig = TickerConfig("10_TICKERS")
 
     data_dir: str = "../indicators"
-    start_date: str = "2017-05-01"
+    start_date: str = "2016-05-01"
     end_date: str = "2020-05-30"
     initial_cash: float = 10000.0
 
@@ -87,10 +87,10 @@ class AppConfig:
     hidden_size: int = 512
     lr: float = 1e-4
     noise_init: float = 0.3
-    noise_final: float = 0.05
+    noise_final: float = 0.08
     device: Optional[str] = None
     dropout_rate: float = 0.0
-    normalization: Optional[str] = "layer"
+    normalization: Optional[str] = "cross"
 
     def __post_init__(self):
         """
