@@ -48,7 +48,6 @@ def plot_price_history(
     if save_path:
         plt.savefig(save_path, dpi=150, bbox_inches="tight")
 
-    plt.show()
     plt.close(fig)
 
 

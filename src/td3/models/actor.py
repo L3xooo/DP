@@ -9,8 +9,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from td3.models.cross_norm import CrossNorm1d
-
 
 class Actor(nn.Module):
     """
@@ -26,7 +24,7 @@ class Actor(nn.Module):
         action_dim: int,
         hidden_size: int = 256,
         dropout_rate: float = 0.0,
-        normalization: str | None = "cross",
+        normalization: str | None = "layer",
     ):
         """
         Actor with optional dropout and normalization layers.
@@ -36,10 +34,9 @@ class Actor(nn.Module):
             action_dim: Number of action logits produced.
             hidden_size: Width of hidden layers.
             dropout_rate: Dropout probability applied after hidden layers during training.
-            normalization: One of {None, 'batch', 'layer', 'cross'}; adds BatchNorm1d,
-                           LayerNorm, or CrossNorm after fully-connected layers which
-                           stabilizes activations across changing input distributions
-                           (helps generalization across regimes).
+            normalization: One of {None, 'batch', 'layer', 'cross'}; adds BatchNorm1d or
+                           LayerNorm after fully-connected layers which stabilizes activations
+                           across changing input distributions (helps generalization across regimes).
         """
         super(Actor, self).__init__()
         self.input_dim = input_dim
@@ -48,15 +45,12 @@ class Actor(nn.Module):
         self.out = nn.Linear(hidden_size, action_dim)
 
         self.normalization = normalization
-        if normalization == "batch":
+        if normalization in {"batch", "cross"}:
             self.norm1 = nn.BatchNorm1d(hidden_size)
             self.norm2 = nn.BatchNorm1d(hidden_size)
         elif normalization == "layer":
             self.norm1 = nn.LayerNorm(hidden_size)
             self.norm2 = nn.LayerNorm(hidden_size)
-        elif normalization == "cross":
-            self.norm1 = CrossNorm1d(hidden_size)
-            self.norm2 = CrossNorm1d(hidden_size)
         else:
             self.norm1 = nn.Identity()
             self.norm2 = nn.Identity()

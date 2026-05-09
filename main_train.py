@@ -62,7 +62,7 @@ def main() -> None:
         run_metrics = experiment_metrics.start_run(run_id=str(iteration))
         for episode in range(app_config.number_of_episodes):
 
-            if episode % 10 == 0:
+            if episode % 20 == 0 and episode != 0:
                 logger.info("Saving model in episode %d", episode)
                 td3_agent.save_model(models_dir, filename=f'td3_model_run_{iteration}_{episode}.pth')
 
@@ -96,11 +96,9 @@ def main() -> None:
                     break
                 logger.debug("State: %s", state)
                 action, _ = td3_agent.select_action(state)
-                # logger.debug("Action: %s", action)
                 new_state, reward_val, done, _, _ = env.step(action)
                 if new_state is not None:
                     logger.debug("Reward: %s", reward_val)
-                    # logger.debug("New state: %s", new_state)
                     env.replay_buffer.add(state, action, reward_val, done, new_state)
                     state = new_state
                     episode_metrics.update(
@@ -112,7 +110,7 @@ def main() -> None:
                         )
                     )
 
-        # td3_agent.save_model(models_dir, filename=f'td3_model_run_{iteration}.pth')
+        td3_agent.save_model(models_dir, filename=f'td3_model_run_{iteration}.pth')
     provide_train_graphs(plots_dir, experiment_metrics)
 
 if __name__ == "__main__":

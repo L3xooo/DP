@@ -7,13 +7,13 @@ environment settings, and model options required to run a training session.
 Author: Peter Likavec
 """
 
-from dataclasses import dataclass, field, asdict, replace
+from dataclasses import dataclass, field, asdict
 from typing import Optional, List, Any
 from pathlib import Path
 import json
 import torch
 
-from td3.config.ticker_config import TickerConfig, TickerConfigName
+from td3.config.ticker_config import TickerConfig
 from td3.utils.date_utils import check_if_later_date
 from td3.utils.logs.logger import WithLogger
 
@@ -33,13 +33,20 @@ class AppConfig:
     number_of_episodes: int = 100
     batch_size: int = 256
     replay_buffer_size: int = 60_000
-
-    ticker_config: TickerConfig = TickerConfig("10_TICKERS")
-
     data_dir: str = "../indicators"
+    # 1027 steps per episode
     start_date: str = "2016-05-01"
     end_date: str = "2020-05-30"
     initial_cash: float = 10000.0
+    hidden_size: int = 256
+    lr: float = 3e-5
+    noise_init: float = 0.4
+    noise_final: float = 0.08
+    device: Optional[str] = None
+    dropout_rate: float = 0.0
+    normalization: Optional[str] = "cross"
+    lookback_window: int = 20
+    ticker_config: TickerConfig = TickerConfig("10_TICKERS")
 
     filter_out: List[str] = field(
         default_factory=lambda: [
@@ -83,15 +90,6 @@ class AppConfig:
             'vwap',
         ]
     )
-
-    hidden_size: int = 512
-    lr: float = 1e-5
-    noise_init: float = 0.4
-    noise_final: float = 0.08
-    device: Optional[str] = None
-    dropout_rate: float = 0.0
-    normalization: Optional[str] = "cross"
-    lookback_window: int = 5
 
     def __post_init__(self):
         """

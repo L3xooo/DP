@@ -22,7 +22,7 @@ from td3.utils.graph_utils import plot_price_history
 from td3.utils.logs.logger import LoggerFactory
 from td3.utils.torch_utils import count_params
 
-EXPERIMENT_DIR = "simulations/train/cross_norm50_lookback5/"
+EXPERIMENT_DIR = "simulations/train/run_2026-05-09_20-16-39/"
 logger = LoggerFactory.create_logger(__name__)
 
 def get_model_paths() -> Tuple[List[str], List[str]]:
@@ -106,6 +106,7 @@ def main() -> None:
             dropout_rate=app_config.dropout_rate,
             normalization=app_config.normalization,
         )
+
         td3_agent.load_model(model_path)
         td3_agent.actor.eval()
         td3_agent.critic1.eval()
