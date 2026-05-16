@@ -63,10 +63,10 @@ def main() -> None:
         for episode in range(app_config.number_of_episodes):
 
             if episode % 20 == 0 and episode != 0:
-                logger.info("Saving model in episode %d", episode)
+                logger.debug("Saving model in episode %d", episode)
                 td3_agent.save_model(models_dir, filename=f'td3_model_run_{iteration}_{episode}.pth')
 
-            logger.info("Starting episode %d / %d", episode + 1, app_config.number_of_episodes)
+            # logger.info("Starting episode %d / %d", episode + 1, app_config.number_of_episodes)
             episode_metrics = run_metrics.start_episode()
             state = env.reset()
             td3_agent.set_episode_and_noise(episode)
@@ -92,7 +92,7 @@ def main() -> None:
                         save_dir=weights_dir + "/run_" + str(iteration),
                     )
                     episode_metrics.aggregate()
-                    logger.info("Total reward: %s", episode_metrics.total_reward)
+                    logger.debug("Total reward: %s", episode_metrics.total_reward)
                     break
                 logger.debug("State: %s", state)
                 action, _ = td3_agent.select_action(state)
@@ -101,6 +101,7 @@ def main() -> None:
                     logger.debug("Reward: %s", reward_val)
                     env.replay_buffer.add(state, action, reward_val, done, new_state)
                     state = new_state
+
                     episode_metrics.update(
                         td3_agent.update(
                             env.replay_buffer,
@@ -111,6 +112,14 @@ def main() -> None:
                     )
 
         td3_agent.save_model(models_dir, filename=f'td3_model_run_{iteration}.pth')
+        logger.info(
+            "Train stats | Iteration: %d | Total reward: %.6f | "
+            "Portfolio value: %.2f",
+            iteration,
+            run_metrics.episodes[-1].total_reward,
+            run_metrics.episodes[-1].final_portfolio_value,
+        )
+
     provide_train_graphs(plots_dir, experiment_metrics)
 
 if __name__ == "__main__":

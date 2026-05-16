@@ -29,23 +29,22 @@ class AppConfig:
     and the target ticker universe.
     """
 
-    iterations: int = 1
+    iterations: int = 5
     number_of_episodes: int = 100
-    batch_size: int = 256
+    batch_size: int = 512
     replay_buffer_size: int = 60_000
     data_dir: str = "../indicators"
-    # 1027 steps per episode
     start_date: str = "2016-05-01"
     end_date: str = "2020-05-30"
     initial_cash: float = 10000.0
-    hidden_size: int = 256
+    hidden_size: int = 512
     lr: float = 3e-5
-    noise_init: float = 0.4
+    noise_init: float = 0.3
     noise_final: float = 0.08
     device: Optional[str] = None
     dropout_rate: float = 0.0
     normalization: Optional[str] = "cross"
-    lookback_window: int = 20
+    lookback_window: int = 1
     ticker_config: TickerConfig = TickerConfig("10_TICKERS")
 
     filter_out: List[str] = field(

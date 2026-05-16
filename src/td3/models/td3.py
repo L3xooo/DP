@@ -253,14 +253,7 @@ class TD3:
         if replay_buffer.size() < batch_size:
             return StepMetrics()
 
-        # Pass the training for the first 5000 steps
-
-
-
         self.total_it += 1
-
-        if self.total_it < 5000:
-            return StepMetrics()
 
         states, actions, rewards, dones, next_states = replay_buffer.sample_batch(batch_size)
         states = torch.tensor(states, dtype=torch.float32, device=self.device)
