@@ -4,6 +4,8 @@ This module defines a Twin Delayed DDPG (TD3) agent composed of one actor,
 two critics, and their target networks. The actor outputs action logits that
 are transformed to portfolio weights, while critics estimate Q-values for
 state-action pairs.
+
+Author: Peter Likavec
 """
 
 import torch

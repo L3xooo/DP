@@ -1,6 +1,7 @@
 """
+Module wrapper for running graph methods to summarize results.
 
-
+Author: Peter Likavec
 """
 
 from typing import List
