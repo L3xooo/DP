@@ -7,8 +7,6 @@ Author: Peter Likavec
 import torch.nn as nn
 import torch
 
-from td3.models.cross_norm import CrossNorm1d
-
 
 class Critic(nn.Module):
     """
@@ -25,7 +23,7 @@ class Critic(nn.Module):
         action_dim: int,
         hidden_size: int = 64,
         dropout_rate: float = 0.0,
-        normalization: str | None = "cross",
+        normalization: str | None = "layer",
     ):
         super(Critic, self).__init__()
         # Combine state and action as input to the critic
@@ -35,15 +33,12 @@ class Critic(nn.Module):
 
         # Normalization layers: prefer LayerNorm for small-batch RL scenarios
         self.normalization = normalization
-        if normalization == "batch":
+        if normalization in {"batch", "cross"}:
             self.norm1 = nn.BatchNorm1d(hidden_size)
             self.norm2 = nn.BatchNorm1d(hidden_size)
         elif normalization == "layer":
             self.norm1 = nn.LayerNorm(hidden_size)
             self.norm2 = nn.LayerNorm(hidden_size)
-        elif normalization == "cross":
-            self.norm1 = CrossNorm1d(hidden_size)
-            self.norm2 = CrossNorm1d(hidden_size)
         else:
             self.norm1 = nn.Identity()
             self.norm2 = nn.Identity()
@@ -63,6 +58,21 @@ class Critic(nn.Module):
         Returns:
             torch.Tensor: Estimated Q-value of shape (batch_size, 1).
         """
+        return self._forward_from_state_action(state, action)
+
+    def forward_crossnorm(self, state, action, next_state, next_action):
+        """Forward pass using mixed on/off-policy batches for CrossNorm statistics."""
+
+        if self.normalization != "cross":
+            raise ValueError("forward_crossnorm requires normalization='cross'")
+
+        mixed_state = torch.cat([state, next_state], dim=0)
+        mixed_action = torch.cat([action, next_action], dim=0)
+        mixed_q = self._forward_from_state_action(mixed_state, mixed_action)
+        batch_size = state.size(0)
+        return mixed_q[:batch_size], mixed_q[batch_size:]
+
+    def _forward_from_state_action(self, state, action):
         x = torch.cat([state, action], dim=1)
 
         x = self.fc1(x)

@@ -22,7 +22,7 @@ from td3.utils.graph_utils import plot_price_history
 from td3.utils.logs.logger import LoggerFactory
 from td3.utils.torch_utils import count_params
 
-EXPERIMENT_DIR = "simulations/train/cross_norm50_lookback5/"
+EXPERIMENT_DIR = "simulations/train/<run_directory>/"
 logger = LoggerFactory.create_logger(__name__)
 
 def get_model_paths() -> Tuple[List[str], List[str]]:
@@ -106,6 +106,7 @@ def main() -> None:
             dropout_rate=app_config.dropout_rate,
             normalization=app_config.normalization,
         )
+
         td3_agent.load_model(model_path)
         td3_agent.actor.eval()
         td3_agent.critic1.eval()
@@ -122,8 +123,8 @@ def main() -> None:
 
             # logger.info("Executing action for on date %s step %s", all_dates[env.current_step], env.current_step)
             action, noisy_logits = td3_agent.select_action(state, None, None, False)
-            logger.info("Action: %s", action)
-            logger.info("Noisy logits: %s", noisy_logits)
+            logger.debug("Action: %s", action)
+            logger.debug("Noisy logits: %s", noisy_logits)
             new_state, reward_val, done, _, _ = env.step(action)
             if new_state is not None:
                 state = new_state

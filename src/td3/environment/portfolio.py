@@ -152,7 +152,7 @@ class PortfolioEnv(gym.Env):
 
         portfolio_value = self._calculate_portfolio_value()
         next_portfolio_value = self._calculate_portfolio_value(self._get_prices(1))
-        self.logger.info(f"Portfolio value Current t: {portfolio_value} | Next t+1: {next_portfolio_value}" )
+        self.logger.debug(f"Portfolio value Current t: {portfolio_value} | Next t+1: {next_portfolio_value}" )
         log_return = np.log((next_portfolio_value + 1e-12) / (portfolio_value + 1e-12))
         #
         # turnover = 0.0
@@ -199,11 +199,12 @@ class PortfolioEnv(gym.Env):
         self.shares.set_prev_from_curr()
         self.assets_prices.set_prev_from_curr()
 
-        self.logger.info("Prices: %s", self._get_prices())
+        self.logger.debug("Prices: %s", self._get_prices())
         try:
-            self.logger.info("Next prices: %s", self._get_prices(1))
+            self.logger.debug("Next prices: %s", self._get_prices(1))
         except IndexError:
-            self.logger.warn("Cannot retrieve the next prices index error")
+            pass
+            # self.logger.warn("Cannot retrieve the next prices index error")
         # Calculate the current portfolio value with previous cash and shares held
         self.portfolio_value.set_curr(
             self.portfolio_cash.prev + self._get_prices().dot(self.shares.prev)
@@ -227,13 +228,15 @@ class PortfolioEnv(gym.Env):
         try:
             reward = self._calculate_reward()
         except IndexError:
-            self.logger.warn("Error on reward calculation")
+            pass
+            # self.logger.warn("Error on reward calculation")
 
         next_state = None
         try:
             next_state = self._get_state_next()
         except IndexError:
-            self.logger.warn("Error on getting next state")
+            pass
+            # self.logger.warn("Error on getting next state")
 
         episode_end = self.current_step >= self.num_steps - 1
         self.current_step += 1

@@ -1,6 +1,7 @@
 """
+Module wrapper for running graph methods to summarize results.
 
-
+Author: Peter Likavec
 """
 
 from typing import List
@@ -143,7 +144,6 @@ def provide_train_graphs(plots_dir: str, experiment_metrics: ExperimentMetrics) 
             save_dir=plots_dir,
             y_label="Critic Loss",
             y_scale="log",
-            stride=10,
             skip_first=0,
         )
 

@@ -1,9 +1,7 @@
-entmax
-gymnasium
-matplotlib
-numpy
-pandas
-pytest
-torch
-alpaca-trade-api
-optuna
+entmax==1.3
+gymnasium==1.2.3
+matplotlib==3.10.8
+numpy==2.4.2
+pandas==3.0.0
+pytest==9.0.2
+torch==2.10.0

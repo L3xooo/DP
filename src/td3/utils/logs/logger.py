@@ -58,7 +58,7 @@ class LoggerFactory:
     def create_logger(name: str):
         LoggerFactory.clear_log()
         logger = logging.getLogger(name)
-        logger.setLevel(logging.DEBUG)
+        logger.setLevel(logging.INFO)
         logger.disabled = False
 
         console_handler = logging.StreamHandler(sys.stdout)

@@ -83,8 +83,7 @@ class EpisodeMetrics:
             metrics: StepMetrics instance from the latest environment step.
         """
         self.steps.append(metrics)
-        self.rewards.append(metrics.reward)
-        self.total_reward += metrics.reward
+        self.total_reward = metrics.reward
         self.final_portfolio_value = metrics.portfolio_value
         self.final_weights.append(metrics.weights)
 
@@ -117,7 +116,7 @@ class EpisodeMetrics:
         self.q2_mean = float(np.mean(q2s)) if q2s else None
         self.target_q_mean = float(np.mean(tqs)) if tqs else None
 
-        self.total_reward = float(sum(self.rewards))
+        self.total_reward = float(sum(s.reward for s in self.steps))
         self.final_portfolio_value = float(self.steps[-1].portfolio_value) if self.steps else 0.0
         self.steps = []
 

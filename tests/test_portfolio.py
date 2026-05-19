@@ -197,7 +197,7 @@ class TestPortfolioReset:
             features=features,
             prices=prices,
             tickers=tickers,
-            app_config=AppConfig(),
+            app_config=AppConfig(lookback_window=1),
         )
 
         env.current_step = 3
