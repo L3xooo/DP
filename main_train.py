@@ -66,7 +66,7 @@ def main() -> None:
                 logger.debug("Saving model in episode %d", episode)
                 td3_agent.save_model(models_dir, filename=f'td3_model_run_{iteration}_{episode}.pth')
 
-            # logger.info("Starting episode %d / %d", episode + 1, app_config.number_of_episodes)
+            logger.info("Starting episode %d / %d", episode + 1, app_config.number_of_episodes)
             episode_metrics = run_metrics.start_episode()
             state = env.reset()
             td3_agent.set_episode_and_noise(episode)
