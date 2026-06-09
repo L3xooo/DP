@@ -6,12 +6,12 @@ capital = initial_capital
 
 # načítanie dát
 weights = pd.read_csv(
-    r"/home/teodora/Desktop/workspace/DP/simulations/test/run_2026-04-30_12-35-17/weights/weights_td3_model_run_1.csv",
+    r"/simulations/test/run_2026-04-30_12-35-17/weights/weights_td3_model_run_1.csv",
     parse_dates=["Date"]
 ).set_index("Date")
 
 prices = pd.read_csv(
-    r"/home/teodora/Desktop/workspace/DP/simulations/test/run_2026-04-30_12-35-17/weights/weights_td3_model_run_1_prices.csv",
+    r"/simulations/test/run_2026-04-30_12-35-17/weights/weights_td3_model_run_1_prices.csv",
     parse_dates=["date"]
 ).set_index("date")
 

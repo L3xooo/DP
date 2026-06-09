@@ -6,12 +6,12 @@ capital = initial_capital
 
 # načítanie dát
 weights = pd.read_csv(
-    r"/home/teodora/Desktop/workspace/DP/simulations/test/run_2026-04-28_11-53-44/weights/weights_td3_model_run_0.csv",
+    r"/simulations/test/run_2026-04-30_12-35-17/weights/weights_td3_model_run_1.csv",
     parse_dates=["Date"]
 ).set_index("Date")
 
 prices = pd.read_csv(
-    r"/home/teodora/Desktop/workspace/DP/simulations/test/run_2026-04-28_11-53-44/weights/weights_td3_model_run_0_prices.csv",
+    r"/simulations/test/run_2026-04-30_12-35-17/weights/weights_td3_model_run_1_prices.csv",
     parse_dates=["date"]
 ).set_index("date")
 
@@ -36,7 +36,7 @@ returns.iloc[0] = 0
 
 # uloženie do CSV
 returns.to_csv(
-    r"/home/teodora/Desktop/workspace/DP/simulations/test/run_2026-04-28_11-53-44/returns/daily_asset_returns_run0.csv"
+    r"/home/teodora/Desktop/workspace/DP/simulations/test/run_2026-04-30_12-35-17/returns/daily_asset_returns_run0.csv"
 )
 
 portfolio_returns = weights * returns
@@ -62,7 +62,7 @@ portfolio_returns["zisk"] = profit_series
 portfolio_returns["vynos_portfolia"] = capital_series
 
 portfolio_returns.to_csv(
-    r"/home/teodora/Desktop/workspace/DP/simulations/test/run_2026-04-28_11-53-44/returns/portfolio_returns_run0.csv"
+    r"/home/teodora/Desktop/workspace/DP/simulations/test/run_2026-04-30_12-35-17/returns/portfolio_returns_run0.csv"
 )
 print(portfolio_returns[["sucet", "zisk", "vynos_portfolia"]])
 
@@ -76,6 +76,6 @@ plt.grid(True, linestyle="--", alpha=0.5)
 plt.legend()
 
 plt.tight_layout()
-plt.savefig("/home/teodora/Desktop/workspace/DP/simulations/test/run_2026-04-28_11-53-44/plots/portfolio_value_plot_run0.png", dpi=200)
+plt.savefig("/home/teodora/Desktop/workspace/DP/simulations/test/run_2026-04-30_12-35-17/plots/portfolio_value_plot_run0.png", dpi=200)
 plt.close()
 
