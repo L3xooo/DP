@@ -4,6 +4,8 @@ This module defines a Twin Delayed DDPG (TD3) agent composed of one actor,
 two critics, and their target networks. The actor outputs action logits that
 are transformed to portfolio weights, while critics estimate Q-values for
 state-action pairs.
+
+Author: Peter Likavec
 """
 
 import torch
@@ -44,8 +46,8 @@ class TD3:
         noise_init=0.3,
         noise_final=0.05,
         noise_anneal_episodes=500,
-        noise_sigmoid_midpoint=0.6,
-        noise_sigmoid_steepness=12.0,
+        noise_sigmoid_midpoint=0.7,
+        noise_sigmoid_steepness=6.0,
         # regularization options
         dropout_rate: float = 0.0,
         normalization: str | None = "layer",
@@ -70,6 +72,7 @@ class TD3:
             device: Torch device where tensors and modules are allocated.
         """
         self.device = device
+        self.normalization = normalization
         self.total_it = 0
         self.policy_noise = 0.2
         self.noise_clip = 0.5
@@ -107,10 +110,26 @@ class TD3:
         ).to(self.device)
 
         self.target_actor = Actor(
-            input_dim=state_dim, action_dim=action_dim, hidden_size=hidden_size
+            input_dim=state_dim,
+            action_dim=action_dim,
+            hidden_size=hidden_size,
+            dropout_rate=dropout_rate,
+            normalization=normalization,
         ).to(self.device)
-        self.target_critic1 = Critic(state_dim, action_dim, hidden_size).to(self.device)
-        self.target_critic2 = Critic(state_dim, action_dim, hidden_size).to(self.device)
+        self.target_critic1 = Critic(
+            state_dim,
+            action_dim,
+            hidden_size,
+            dropout_rate=dropout_rate,
+            normalization=normalization,
+        ).to(self.device)
+        self.target_critic2 = Critic(
+            state_dim,
+            action_dim,
+            hidden_size,
+            dropout_rate=dropout_rate,
+            normalization=normalization,
+        ).to(self.device)
 
         self.mu = np.zeros(action_dim)
 
@@ -195,10 +214,16 @@ class TD3:
 
         if state.ndim == 1:
             state = state.reshape(1, -1)
-        # docasny stav sa prevedie na tensor
+
         state_t = torch.tensor(state, dtype=torch.float32, device=self.device)
-        # hodnoty, ktore vygeneruje aktor
-        logits = self.actor(state_t)
+        was_training = self.actor.training
+        if was_training:
+            self.actor.eval()
+        try:
+            logits = self.actor(state_t)
+        finally:
+            if was_training:
+                self.actor.train()
         self.logger.debug(f"Logits: %s {logits}")
         if not use_noise:
             self.logger.debug("Not using noise.")
@@ -231,8 +256,8 @@ class TD3:
             return StepMetrics()
 
         self.total_it += 1
-        states, actions, rewards, dones, next_states = replay_buffer.sample_batch(batch_size)
 
+        states, actions, rewards, dones, next_states = replay_buffer.sample_batch(batch_size)
         states = torch.tensor(states, dtype=torch.float32, device=self.device)
         next_states = torch.tensor(next_states, dtype=torch.float32, device=self.device)
         actions = torch.tensor(actions, dtype=torch.float32, device=self.device)
@@ -247,18 +272,34 @@ class TD3:
 
         with torch.no_grad():
             next_logits = self.target_actor(next_states)
-
             next_logits_noisy = add_logit_noise(next_logits, self.policy_noise, self.noise_clip)
-
             next_actions = logits_to_weights(next_logits_noisy)
 
-            next_q1 = self.target_critic1(next_states, next_actions)
-            next_q2 = self.target_critic2(next_states, next_actions)
+            if self.normalization == "cross":
+                _, next_q1 = self.target_critic1.forward_crossnorm(
+                    states,
+                    actions,
+                    next_states,
+                    next_actions,
+                )
+                _, next_q2 = self.target_critic2.forward_crossnorm(
+                    states,
+                    actions,
+                    next_states,
+                    next_actions,
+                )
+            else:
+                next_q1 = self.target_critic1(next_states, next_actions)
+                next_q2 = self.target_critic2(next_states, next_actions)
             next_q = torch.min(next_q1, next_q2)
             target_q = rewards + (1.0 - dones) * self.gamma * next_q
 
-        q1 = self.critic1(states, actions)
-        q2 = self.critic2(states, actions)
+        if self.normalization == "cross":
+            q1, _ = self.critic1.forward_crossnorm(states, actions, next_states, next_actions)
+            q2, _ = self.critic2.forward_crossnorm(states, actions, next_states, next_actions)
+        else:
+            q1 = self.critic1(states, actions)
+            q2 = self.critic2(states, actions)
 
         critic1_loss = nn.MSELoss()(q1, target_q)
         critic2_loss = nn.MSELoss()(q2, target_q)
@@ -280,11 +321,19 @@ class TD3:
         q1_mean = float(q1.detach().mean().cpu().item())
         q2_mean = float(q2.detach().mean().cpu().item())
 
-        if self.total_it % 2 == 0:
+        if self.total_it % 3 == 0:
             actor_logits = self.actor(states)
             actor_actions = logits_to_weights(actor_logits)
 
-            q1_pi = self.critic1(states, actor_actions)
+            if self.normalization == "cross":
+                q1_pi, _ = self.critic1.forward_crossnorm(
+                    states,
+                    actor_actions,
+                    next_states,
+                    next_actions,
+                )
+            else:
+                q1_pi = self.critic1(states, actor_actions)
 
             actor_loss = -q1_pi.mean()
 

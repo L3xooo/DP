@@ -13,8 +13,9 @@ test_simulations/
 model_viz
 .DS_Store
 weights.csv
-/indicators/
-/indicators_depr/
-/portfolio_utils_results/
-/portfolio_utils_results/data/
-/portfolio_utils_results/plots/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python

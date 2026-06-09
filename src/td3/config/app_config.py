@@ -7,13 +7,13 @@ environment settings, and model options required to run a training session.
 Author: Peter Likavec
 """
 
-from dataclasses import dataclass, field, asdict, replace
+from dataclasses import dataclass, field, asdict
 from typing import Optional, List, Any
 from pathlib import Path
 import json
 import torch
 
-from td3.config.ticker_config import TickerConfig, TickerConfigName
+from td3.config.ticker_config import TickerConfig
 from td3.utils.date_utils import check_if_later_date
 from td3.utils.logs.logger import WithLogger
 
@@ -29,17 +29,23 @@ class AppConfig:
     and the target ticker universe.
     """
 
-    iterations: int = 1
+    iterations: int = 5
     number_of_episodes: int = 100
-    batch_size: int = 128
-    replay_buffer_size: int = 40_000
-
-    ticker_config: TickerConfig = TickerConfig("10_TICKERS")
-
-    data_dir: str = "/home/teodora/Desktop/workspace/DP/indicators_depr"
+    batch_size: int = 512
+    replay_buffer_size: int = 60_000
+    data_dir: str = "../indicators"
     start_date: str = "2016-05-01"
-    end_date: str = "2019-01-18"
+    end_date: str = "2020-05-30"
     initial_cash: float = 10000.0
+    hidden_size: int = 512
+    lr: float = 3e-5
+    noise_init: float = 0.3
+    noise_final: float = 0.08
+    device: Optional[str] = None
+    dropout_rate: float = 0.0
+    normalization: Optional[str] = "cross"
+    lookback_window: int = 1
+    ticker_config: TickerConfig = TickerConfig("10_TICKERS")
 
     filter_out: List[str] = field(
         default_factory=lambda: [
@@ -84,19 +90,13 @@ class AppConfig:
         ]
     )
 
-    hidden_size: int = 512
-    lr: float = 1e-4
-    noise_init: float = 0.3
-    noise_final: float = 0.05
-    device: Optional[str] = None
-    dropout_rate: float = 0.0
-    normalization: Optional[str] = "layer"
-
     def __post_init__(self):
         """
         Set the compute device after initialization.
         Defaults to CUDA if available, otherwise CPU. Skips detection if device was explicitly set.
         """
+        if self.lookback_window < 1:
+            raise ValueError("lookback_window must be >= 1")
         if self.device is not None:
             return
         if torch.cuda.is_available():
