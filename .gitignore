@@ -19,3 +19,7 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
+/examples/
+/portfolio_utils_results/
+/portfolio_utils_results/data/
+portfolio_utils_results/plots/

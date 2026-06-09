@@ -42,4 +42,4 @@ def logits_to_weights(logits: torch.Tensor) -> torch.Tensor:
         by applying the entmax transformation with alpha=1.6 along the last dimension.
     """
     # return torch.softmax(logits, dim=-1)
-    return entmax_bisect(logits, dim=-1, alpha=1.6)
+    return entmax_bisect(logits, dim=-1, alpha=1.51)

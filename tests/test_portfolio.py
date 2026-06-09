@@ -7,7 +7,7 @@ import pytest
 
 
 def _make_env(
-    seed: int = 0, T: int = 6, N: int = 4, F: int = 3
+    seed: int = 0, T: int = 6, N: int = 4, F: int = 3, lookback_window: int = 1
 ) -> tuple[PortfolioEnv, np.ndarray, int, int]:
     rng = np.random.default_rng(seed)
     features = rng.normal(size=(T, N, F)).astype(np.float32)
@@ -17,7 +17,7 @@ def _make_env(
         features=features,
         prices=prices,
         tickers=tickers,
-        app_config=AppConfig(),
+        app_config=AppConfig(lookback_window=lookback_window),
     )
     return env, features, N, F
 
@@ -77,6 +77,18 @@ class TestPortfolioGetState:
 
         with pytest.raises(IndexError):
             _ = env._get_state_next()
+
+    def test_get_state_with_lookback_window_pads_initial_steps(self):
+        env, features, N, F = _make_env(T=5, N=2, F=3, lookback_window=3)
+        env.current_step = 1
+
+        pad = np.repeat(features[0:1], 1, axis=0)
+        window = features[0:2]
+        expected = np.concatenate([pad, window], axis=0).flatten().astype(np.float32)
+        got = env._get_state()
+
+        np.testing.assert_allclose(got, expected)
+        assert got.shape == (3 * N * F,)
 
 
 class TestPortfolioGetPrices:
@@ -185,7 +197,7 @@ class TestPortfolioReset:
             features=features,
             prices=prices,
             tickers=tickers,
-            app_config=AppConfig(),
+            app_config=AppConfig(lookback_window=1),
         )
 
         env.current_step = 3

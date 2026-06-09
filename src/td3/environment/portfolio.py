@@ -28,8 +28,8 @@ class PortfolioEnv(gym.Env):
     cash.
 
     Observation space:
-        Box of shape ``(num_assets * feature_dim,)`` — the flattened feature matrix
-        for the current time step.
+        Box of shape ``(num_assets * feature_dim * lookback_window,)`` — the flattened
+        feature window for the current time step.
 
     Action space:
         Box of shape ``(num_assets + 1,)`` in ``[0, 1]`` — target portfolio weights
@@ -47,6 +47,8 @@ class PortfolioEnv(gym.Env):
         super(PortfolioEnv, self).__init__()
 
         assert features.ndim == 3, "features must be a 3D numpy array (T, N, F)"
+        if app_config is None:
+            raise ValueError("app_config is required")
         self.features = features.astype(np.float32)
         self.current_step = None
         # From the shape get number of steps, assets and feature dimension
@@ -56,6 +58,9 @@ class PortfolioEnv(gym.Env):
         self.seed_value = None
         self.replay_buffer = ReplayBuffer(app_config.replay_buffer_size)
         self.app_config = app_config
+        self.lookback_window = int(app_config.lookback_window)
+        if self.lookback_window < 1:
+            raise ValueError("lookback_window must be >= 1")
 
         # Coefficients
         self.transaction_coefficient = 0.001
@@ -77,7 +82,7 @@ class PortfolioEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(self.num_assets * self.feature_dim,),
+            shape=(self.num_assets * self.feature_dim * self.lookback_window,),
             dtype=np.float32,
         )
         # self.logger.info("State shape: %s", self.features.shape)
@@ -89,17 +94,28 @@ class PortfolioEnv(gym.Env):
         random.seed(seed)
 
     def _get_features_current(self) -> np.ndarray:
-        """Returns the features for the current step as a flattened array."""
-        return self.features[self.current_step].flatten()
+        """Returns the features for the current step as a flattened window."""
+        return self._get_window_features(self.current_step).flatten()
 
     def _get_features_next(self) -> np.ndarray:
-        """Returns the features for the next step as a flattened array."""
+        """Returns the features for the next step as a flattened window."""
         next_step = self.current_step + 1
         if next_step >= self.num_steps:
             raise IndexError
 
         # self.logger.info("Current step: %s | next_step: %s", self.current_step, next_step)
-        return self.features[next_step].flatten()
+        return self._get_window_features(next_step).flatten()
+
+    def _get_window_features(self, step_index: int) -> np.ndarray:
+        """Return a (lookback_window, num_assets, feature_dim) window ending at step_index."""
+        start_index = step_index - self.lookback_window + 1
+        if start_index < 0:
+            pad_count = -start_index
+            pad = np.repeat(self.features[0:1], pad_count, axis=0)
+            window = self.features[0:step_index + 1]
+            return np.concatenate([pad, window], axis=0)
+
+        return self.features[start_index:step_index + 1]
 
     def _get_state(self):
         """Returns the current state as a flattened array of features."""
@@ -136,8 +152,15 @@ class PortfolioEnv(gym.Env):
 
         portfolio_value = self._calculate_portfolio_value()
         next_portfolio_value = self._calculate_portfolio_value(self._get_prices(1))
-        self.logger.info(f"Portfolio value Current t: {portfolio_value} | Next t+1: {next_portfolio_value}" )
-        return np.log((next_portfolio_value + 1e-12) / (portfolio_value + 1e-12))
+        self.logger.debug(f"Portfolio value Current t: {portfolio_value} | Next t+1: {next_portfolio_value}" )
+        log_return = np.log((next_portfolio_value + 1e-12) / (portfolio_value + 1e-12))
+        #
+        # turnover = 0.0
+        # if self.weights is not None:
+        #     turnover = float(np.sum(np.abs(self.weights.curr - self.weights.prev)))
+        # turnover_penalty = 0.0035
+        # return log_return - turnover_penalty * turnover
+        return log_return
 
     def reset(self, seed=None, options=None):
         """
@@ -176,11 +199,12 @@ class PortfolioEnv(gym.Env):
         self.shares.set_prev_from_curr()
         self.assets_prices.set_prev_from_curr()
 
-        self.logger.info("Prices: %s", self._get_prices())
+        self.logger.debug("Prices: %s", self._get_prices())
         try:
-            self.logger.info("Next prices: %s", self._get_prices(1))
+            self.logger.debug("Next prices: %s", self._get_prices(1))
         except IndexError:
-            self.logger.warn("Cannot retrieve the next prices index error")
+            pass
+            # self.logger.warn("Cannot retrieve the next prices index error")
         # Calculate the current portfolio value with previous cash and shares held
         self.portfolio_value.set_curr(
             self.portfolio_cash.prev + self._get_prices().dot(self.shares.prev)
@@ -204,13 +228,15 @@ class PortfolioEnv(gym.Env):
         try:
             reward = self._calculate_reward()
         except IndexError:
-            self.logger.warn("Error on reward calculation")
+            pass
+            # self.logger.warn("Error on reward calculation")
 
         next_state = None
         try:
             next_state = self._get_state_next()
         except IndexError:
-            self.logger.warn("Error on getting next state")
+            pass
+            # self.logger.warn("Error on getting next state")
 
         episode_end = self.current_step >= self.num_steps - 1
         self.current_step += 1

@@ -15,6 +15,7 @@ EXPERIMENT_PREFIX = "run"
 BASE_SIMULATION_DIR = "simulations"
 MODEL_DIR = "models"
 WEIGHTS_DIR = "weights"
+REWARDS_DIR = "rewards"
 PLOT_DIR = "plots"
 
 
@@ -48,8 +49,8 @@ def create_experiment_directories(
     run_type_dir = "train" if run_type == RunType.TRAIN else "test"
     experiment_dir = os.path.join(simulation_dir, run_type_dir, f"{prefix}_{timestamp}")
 
-    sub_dirs = ["plots", "models", "weights"]
-    plots_dir, models_dir, weights_dir = [
+    sub_dirs = [PLOT_DIR, MODEL_DIR, WEIGHTS_DIR, REWARDS_DIR]
+    plots_dir, models_dir, weights_dir, rewards_dir = [
         os.makedirs(os.path.join(experiment_dir, d), exist_ok=True)
         or os.path.join(experiment_dir, d)
         for d in sub_dirs
@@ -58,7 +59,7 @@ def create_experiment_directories(
     with open(os.path.join(experiment_dir, "notes.md"), "w") as f:
         f.write(f"# {prefix}_{timestamp}")
 
-    return experiment_dir, plots_dir, models_dir, weights_dir
+    return experiment_dir, plots_dir, models_dir, weights_dir, rewards_dir
 
 
 def create_directory(path: str) -> str:
