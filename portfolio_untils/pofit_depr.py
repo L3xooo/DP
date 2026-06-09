@@ -9,7 +9,7 @@ experiment_dir, plots_dir, models_dir, weights_dir = create_experiment_directori
 app_config = AppConfig()
 app_config.to_json(experiment_dir)
 
-df = pd.read_csv("/home/teodora/Desktop/workspace/DP/simulations/test/run_2026-04-28_11-53-44/weights/weights_td3_model_run_0.pth.csv")
+df = pd.read_csv("/simulations/test/run_2026-04-30_12-35-17/weights/weights_td3_model_run_1.csv")
 
 for col in df.columns:
     if col != "Date":
@@ -17,14 +17,14 @@ for col in df.columns:
 
 df["row_sum"] = df.drop(columns=["Date", "Cash"]).sum(axis=1)
 
-df.to_csv("/home/teodora/Desktop/workspace/DP/simulations/test/run_2026-04-28_11-53-44/weights/weights_td3_model_run_0.csv", index=False)
+df.to_csv("/home/teodora/Desktop/workspace/DP/simulations/test/run_2026-04-30_12-35-17/weights/weights_td3_model_run_1.csv", index=False)
 
 
 dp = DataProcessor(data_dir=app_config.data_dir)
 df = dp.load_panel(
         tickers=app_config.ticker_config.tickers,
-        start="2024-02-29",
-        end="2025-03-01",
+        start="2021-06-01",
+        end="2024-12-30",
 )
 # Extract close prices
 df_prices = df.loc[:, (slice(None), ["close"])]
@@ -34,7 +34,7 @@ df_prices.columns = df_prices.columns.get_level_values(0)
 
 # Now reset index safely
 df_prices = df_prices.reset_index()
-df_prices.to_csv("/home/teodora/Desktop/workspace/DP/simulations/test/run_2026-04-28_11-53-44/weights/weights_td3_model_run_0_prices.csv", index=False)
+df_prices.to_csv("/home/teodora/Desktop/workspace/DP/simulations/test/run_2026-04-30_12-35-17/weights/weights_td3_model_run_1_prices.csv", index=False)
 print(df_prices.head())
 
 # nacitaj vahy
