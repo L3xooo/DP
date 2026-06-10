@@ -29,13 +29,13 @@ class AppConfig:
     and the target ticker universe.
     """
 
-    iterations: int = 5
-    number_of_episodes: int = 100
-    batch_size: int = 512
+    iterations: int = 1
+    number_of_episodes: int = 5
+    batch_size: int = 1024
     replay_buffer_size: int = 60_000
     data_dir: str = "../indicators"
     start_date: str = "2016-05-01"
-    end_date: str = "2020-05-30"
+    end_date: str = "2018-05-30"
     initial_cash: float = 10000.0
     hidden_size: int = 512
     lr: float = 3e-5
@@ -46,6 +46,7 @@ class AppConfig:
     normalization: Optional[str] = "cross"
     lookback_window: int = 1
     ticker_config: TickerConfig = TickerConfig("10_TICKERS")
+    parquet_dir: Optional[str] = "indicators"
 
     filter_out: List[str] = field(
         default_factory=lambda: [

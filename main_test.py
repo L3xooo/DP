@@ -8,6 +8,9 @@ portfolio weight trajectories alongside performance plots.
 Author: Peter Likavec
 """
 
+import sys
+sys.path.insert(0, 'src')
+
 import os
 from typing import List, Tuple
 
@@ -22,7 +25,7 @@ from td3.utils.graph_utils import plot_price_history
 from td3.utils.logs.logger import LoggerFactory
 from td3.utils.torch_utils import count_params
 
-EXPERIMENT_DIR = "simulations/train/<run_directory>/"
+EXPERIMENT_DIR = "/data/teodora_portfolio/train/run_2026-06-10_18-22-46/"
 logger = LoggerFactory.create_logger(__name__)
 
 def get_model_paths() -> Tuple[List[str], List[str]]:
@@ -76,7 +79,7 @@ def main() -> None:
     Main function for the TD3 training pipeline.
     """
     app_config = AppConfig.load_from_train_config(
-        path=f"{EXPERIMENT_DIR}/config.json", start_date="2021-06-1", end_date="2024-12-30")
+        path=f"{EXPERIMENT_DIR}/config.json", start_date="2019-06-1", end_date="2021-12-30")
     model_names, model_paths = get_model_paths()
 
     experiment_metrics = ExperimentMetrics()
@@ -84,7 +87,7 @@ def main() -> None:
         run_type=RunType.TEST
     )
 
-    data_3d_features, data_3d_prices, tickers, features, all_dates = DataProcessor(data_dir=app_config.data_dir).load_data(app_config)
+    data_3d_features, data_3d_prices, tickers, features, all_dates = DataProcessor(data_dir=app_config.data_dir, parquet_dir=app_config.parquet_dir).load_data(app_config)
     plot_price_history(data_3d_prices, tickers, all_dates, save_path=plots_dir + "/price_history.png")
     steps, _, _= data_3d_features.shape
 

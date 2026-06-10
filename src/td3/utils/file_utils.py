@@ -12,7 +12,7 @@ from datetime import datetime
 from enum import Enum
 
 EXPERIMENT_PREFIX = "run"
-BASE_SIMULATION_DIR = "simulations"
+BASE_SIMULATION_DIR = "/data/teodora_portfolio"
 MODEL_DIR = "models"
 WEIGHTS_DIR = "weights"
 REWARDS_DIR = "rewards"

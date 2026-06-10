@@ -24,10 +24,12 @@ class DataProcessor:
         data_dir: str,
         date_col: str = "date",
         file_pattern: str = "{ticker}/normalized.csv",
+        parquet_dir: Optional[str] = None,
     ):
         self.data_dir = data_dir
         self.date_col = date_col
         self.file_pattern = file_pattern
+        self.parquet_dir = parquet_dir
 
     def _file_path(self, ticker: str) -> str:
         """
@@ -41,6 +43,49 @@ class DataProcessor:
         """
         return os.path.join(self.data_dir, self.file_pattern.format(ticker=ticker))
 
+    def _load_from_parquet(
+        self,
+        ticker: str,
+        filter_cols: Optional[List[str]] = None,
+    ) -> pd.DataFrame:
+        """
+        Loads data from a parquet file for a single ticker.
+
+        Args:
+            ticker: Name of the ticker to assign to the data.
+            filter_cols: Columns to drop from the DataFrame after loading. If None, no columns are dropped.
+
+        Returns:
+            DataFrame containing the ticker's data, indexed by date, with columns wrapped in a MultiIndex (ticker, feature).
+        """
+        if self.parquet_dir is None:
+            raise ValueError("parquet_dir must be set to load from parquet")
+
+        # Construct path: parquet_dir/ticker/normalized.parquet
+        parquet_path = os.path.join(self.parquet_dir, ticker, "normalized.parquet")
+
+        if not os.path.exists(parquet_path):
+            raise FileNotFoundError(f"Parquet file not found for ticker {ticker}: {parquet_path}")
+
+        # load parquet and parse date column, then sort and set as index
+        df = pd.read_parquet(parquet_path)
+
+        # Ensure date column is datetime
+        if self.date_col in df.columns:
+            df[self.date_col] = pd.to_datetime(df[self.date_col])
+            df = df.sort_values(self.date_col).set_index(self.date_col)
+
+        # drop unwanted columns if filter_cols is provided
+        if filter_cols is not None:
+            missing = [c for c in filter_cols if c not in df.columns]
+            if missing:
+                raise ValueError(f"Columns not found in parquet file for {ticker}: {missing}")
+            df = df.drop(columns=filter_cols)
+
+        # wrap columns in MultiIndex so each column is identified by (ticker, feature)
+        df.columns = pd.MultiIndex.from_product([[ticker], df.columns])
+        return df
+
     def _load_single_ticker(
         self,
         ticker: str,
@@ -48,6 +93,7 @@ class DataProcessor:
     ) -> pd.DataFrame:
         """
         Loads a single ticker's CSV file into a DataFrame, optionally filtering out unwanted columns.
+        If parquet_dir is set, loads from parquet instead.
 
         Args:
             ticker: Name of the ticker to load.
@@ -56,6 +102,9 @@ class DataProcessor:
         Returns:
             DataFrame containing the ticker's data, indexed by date, with columns wrapped in a MultiIndex (ticker, feature).
         """
+
+        if self.parquet_dir is not None:
+            return self._load_from_parquet(ticker, filter_cols=filter_cols)
 
         path = self._file_path(ticker)
         if not os.path.exists(path):
