@@ -30,12 +30,12 @@ class AppConfig:
     """
 
     iterations: int = 1
-    number_of_episodes: int = 5
-    batch_size: int = 1024
-    replay_buffer_size: int = 60_000
+    number_of_episodes: int = 100
+    batch_size: int = 128
+    replay_buffer_size: int = 60000
     data_dir: str = "../indicators"
-    start_date: str = "2016-05-01"
-    end_date: str = "2018-05-30"
+    start_date: str = "2017-05-01"
+    end_date: str = "2021-05-30"
     initial_cash: float = 10000.0
     hidden_size: int = 512
     lr: float = 3e-5
@@ -47,6 +47,12 @@ class AppConfig:
     lookback_window: int = 1
     ticker_config: TickerConfig = TickerConfig("10_TICKERS")
     parquet_dir: Optional[str] = "indicators"
+    
+    # Regime awareness parameters
+    enable_regime_awareness: bool = False
+    regime_low_threshold: float = 30.0
+    regime_high_threshold: float = 70.0
+    regime_volatility_window: int = 20
 
     filter_out: List[str] = field(
         default_factory=lambda: [

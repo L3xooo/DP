@@ -31,12 +31,13 @@ def main() -> None:
     """
     experiment_metrics = ExperimentMetrics()
     experiment_dir, plots_dir, models_dir, weights_dir, rewards_dir = create_experiment_directories()
-    logger.info("Dates included: %s", models_dir)
     app_config = AppConfig()
     app_config.to_json(experiment_dir)
 
     dp = DataProcessor(data_dir=app_config.data_dir, parquet_dir=app_config.parquet_dir)
-    data_3d_features, data_3d_prices, tickers, features, dates = dp.load_data(app_config)
+    data_3d_features, data_3d_prices, tickers, features, dates = dp.load_data(
+        app_config, add_regime=app_config.enable_regime_awareness
+    )
     plot_price_history(data_3d_prices, tickers, dates, save_path=plots_dir + "/price_history.png")
 
     logger.info("Dates included: %s", len(dates))
@@ -48,7 +49,8 @@ def main() -> None:
         create_directory(f"{weights_dir}/run_{iteration}")
 
         env = PortfolioEnv(
-            features=data_3d_features, prices=data_3d_prices, tickers=tickers, app_config=app_config
+            features=data_3d_features, prices=data_3d_prices, tickers=tickers, 
+            app_config=app_config
         )
 
         td3_agent = TD3(

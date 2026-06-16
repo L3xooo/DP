@@ -15,6 +15,8 @@ import pandas as pd
 import numpy as np
 from numpy import dtype, ndarray
 
+from td3.utils.regime_awareness import add_regime_features
+
 
 class DataProcessor:
     """Utility class for loading and preprocessing stock data from CSV files."""
@@ -165,13 +167,14 @@ class DataProcessor:
         panel_df = panel_df.sort_index(axis=1)
         return panel_df
 
-    def load_data(self, app_config) -> Tuple[ndarray[tuple[int, int, int], dtype[Any]], ndarray[tuple[int, int, int], dtype[Any]], list[Any], list[Any], list[str]]:
+    def load_data(self, app_config, add_regime: bool = True) -> Tuple[ndarray[tuple[int, int, int], dtype[Any]], ndarray[tuple[int, int, int], dtype[Any]], list[Any], list[Any], list[str]]:
         """
         Load and preprocess data according to the provided application configuration,
         returning 3D numpy arrays for features and prices, along with metadata.
 
         Args:
             app_config: The application configuration object containing ticker selection, date range, and feature filtering information.
+            add_regime: Whether to add regime awareness features (VIX-like indicators, volatility, regime classification)
 
         Returns:
             Tuple containing the 3D numpy array of features (T, N, F), the 3D numpy array of prices (T, N, 1),
@@ -191,6 +194,12 @@ class DataProcessor:
         # convert both to 3D arrays (T, N, F)
         data_3d_features, _, tickers, features = self.to_3d(df_features)
         data_3d_prices, _, _, _ = self.to_3d(df_prices)
+        
+        # Add regime awareness features if enabled
+        if add_regime:
+            data_3d_features = add_regime_features(data_3d_features, data_3d_prices.squeeze(), window=20)
+            features = features + ['realized_volatility', 'market_regime', 'regime_classification']
+        
         all_dates = df.index.get_level_values(0).unique().strftime('%Y-%m-%d').tolist()
 
         return data_3d_features, data_3d_prices, tickers, features, all_dates
