@@ -13,6 +13,7 @@ from td3.config.app_config import AppConfig
 from td3.replay.replay_buffer import ReplayBuffer
 from td3.utils.logs.logger import WithLogger
 from td3.utils.prev_curr import PrevCurr
+from td3.utils.regime_awareness import calculate_market_regime_indicator, classify_regime_step2
 
 DEFAULT_PORTFOLIO_VALUE = 10000.0
 
@@ -75,6 +76,8 @@ class PortfolioEnv(gym.Env):
         self.shares = None
         self.portfolio_cash = None
         self.portfolio_value = None
+        self.current_regime = 1  # Start each trading simulation session as Neutral
+        self.precomputed_regimes = None  # Cache for precomputed regime classifications
 
         self.action_space = spaces.Box(
             low=0.0, high=1.0, shape=(self.num_assets + 1,), dtype=np.float32
@@ -82,7 +85,7 @@ class PortfolioEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(self.num_assets * self.feature_dim * self.lookback_window,),
+            shape=(self.num_assets * self.feature_dim * self.lookback_window + self.num_assets,),
             dtype=np.float32,
         )
         # self.logger.info("State shape: %s", self.features.shape)
@@ -119,12 +122,16 @@ class PortfolioEnv(gym.Env):
 
     def _get_state(self):
         """Returns the current state as a flattened array of features."""
-        return np.concatenate([self._get_features_current().flatten()], axis=0).astype(np.float32)
+        # Broadcast current regime across all assets and append to features
+        regime_broadcast = np.full(self.num_assets, self.current_regime, dtype=np.float32)
+        return np.concatenate([self._get_features_current().flatten(), regime_broadcast], axis=0).astype(np.float32)
 
     def _get_state_next(self):
         # self.logger.info("getting next state")
         """Returns the next state as a flattened array of features."""
-        return np.concatenate([self._get_features_next().flatten()], axis=0).astype(np.float32)
+        # Broadcast current regime across all assets and append to features
+        regime_broadcast = np.full(self.num_assets, self.current_regime, dtype=np.float32)
+        return np.concatenate([self._get_features_next().flatten(), regime_broadcast], axis=0).astype(np.float32)
 
     def _calculate_portfolio_value(self, prices: np.ndarray = None) -> float:
         """Calculates the current portfolio value based on cash and shares held."""
@@ -173,6 +180,7 @@ class PortfolioEnv(gym.Env):
 
         self._get_seed(seed)
         self.current_step = 0
+        self.current_regime = 1  # Start each trading simulation session as Neutral
         w0 = np.zeros(self.num_assets + 1, dtype=np.float32)
         w0[0] = 1.0
         zeros_assets = np.zeros(self.num_assets, dtype=np.float32)
@@ -187,7 +195,55 @@ class PortfolioEnv(gym.Env):
         # Weights in each asset & cash
         self.weights = PrevCurr(prev=zeros_assets.copy(), curr=w0.copy())
 
+        # Precompute regime classifications for all steps (O(T) instead of O(T²) per step)
+        if self.app_config.enable_regime_awareness:
+            self.precomputed_regimes = self._precompute_regimes()
+
         return self._get_state()
+
+    def _precompute_regimes(self):
+        """
+        Precompute regime classifications for all time steps during initialization.
+        This is O(T) instead of O(T²) per step when called during training.
+        """
+        regimes = np.ones(self.num_steps, dtype=int)  # Default to Neutral (1)
+
+        if self.num_steps <= 20:
+            return regimes
+
+        # Ensure prices are 2D (T, N)
+        prices = self.prices.copy()
+        if prices.ndim == 3:
+            prices = prices.squeeze(-1)
+
+        # Calculate market regime indicator once for entire history
+        market_indicator = calculate_market_regime_indicator(prices)
+
+        # Apply hysteresis-based classification in single pass (O(T))
+        current_regime = 1  # Start as Neutral
+        low_thresh = 30.0
+        high_thresh = 70.0
+        buffer = 5.0
+
+        for t in range(len(market_indicator)):
+            if t >= 20:  # Only classify when we have enough data
+                val = market_indicator[t]
+
+                if current_regime == 0:  # Currently Bullish
+                    if val > (low_thresh + buffer):
+                        current_regime = 1  # Switch to Neutral
+                elif current_regime == 1:  # Currently Neutral
+                    if val < (low_thresh - buffer):
+                        current_regime = 0  # Switch to Bullish
+                    elif val > (high_thresh + buffer):
+                        current_regime = 2  # Switch to Bearish
+                elif current_regime == 2:  # Currently Bearish
+                    if val < (high_thresh - buffer):
+                        current_regime = 1  # Switch to Neutral
+
+            regimes[t] = current_regime
+
+        return regimes
 
     def _step_v2(self, action):
         """Executes one time step within the environment based on the given action."""
@@ -240,6 +296,10 @@ class PortfolioEnv(gym.Env):
 
         episode_end = self.current_step >= self.num_steps - 1
         self.current_step += 1
+
+        # Lookup precomputed regime instead of recalculating (O(1) instead of O(T²))
+        if self.precomputed_regimes is not None and self.current_step < len(self.precomputed_regimes):
+            self.current_regime = self.precomputed_regimes[self.current_step]
 
         return (
             next_state,

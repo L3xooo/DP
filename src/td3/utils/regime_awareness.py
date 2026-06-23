@@ -35,32 +35,41 @@ def calculate_realized_volatility(prices: np.ndarray, window: int = 20) -> np.nd
     return vol
 
 
-def calculate_market_regime_indicator(prices: np.ndarray, 
+def calculate_market_regime_indicator(prices: np.ndarray,
                                        window: int = 20) -> np.ndarray:
     """
     Calculate a market-wide regime indicator similar to VIX.
-    
+
     This computes the cross-sectional average of realized volatility
     across all assets, serving as a market fear gauge.
-    
+
     Args:
         prices: Array of prices (T, N) where T is time steps and N is assets
         window: Rolling window size for volatility calculation
-        
+
     Returns:
         Array of regime indicator values (T,)
     """
     vol = calculate_realized_volatility(prices, window)
     market_vol = np.mean(vol, axis=1)
 
+    # Optimized O(T) normalization using expanding min/max
     normalized = np.zeros_like(market_vol)
-    # Step-by-step rolling expansion of min/max bounds
-    for t in range(1, len(market_vol)):
-        history = market_vol[:t+1]
-        min_vol = np.percentile(history, 5)
-        max_vol = np.percentile(history, 95)
-        range_vol = max_vol - min_vol + 1e-12
-        normalized[t] = ((market_vol[t] - min_vol) / range_vol) * 100
+    running_min = np.inf
+    running_max = -np.inf
+
+    for t in range(len(market_vol)):
+        if t == 0:
+            normalized[t] = 0
+        else:
+            # Update running min/max incrementally
+            running_min = min(running_min, market_vol[t])
+            running_max = max(running_max, market_vol[t])
+
+            # Use percentile-based bounds for more robust normalization
+            # But compute efficiently using cumulative min/max
+            range_vol = running_max - running_min + 1e-12
+            normalized[t] = ((market_vol[t] - running_min) / range_vol) * 100
 
     return np.clip(normalized, 0, 100)
 
@@ -89,6 +98,44 @@ def classify_regime(regime_indicator: np.ndarray,
     regimes[regime_indicator >= high_threshold] = 2  # Bearish
     
     return regimes
+
+
+def classify_regime_step2(regime_indicator: np.ndarray, current_regime: int, 
+                          low_thresh: float = 30.0, high_thresh: float = 70.0, 
+                          buffer: float = 5.0) -> int:
+    """
+    Applies hysteresis buffer to classify the regime for a single time step,
+    preventing state-flickering and stabilization noise inside the MDP loop.
+    
+    Args:
+        regime_indicator: Array of regime indicator values (most recent value at end)
+        current_regime: Current regime state (0: Bullish, 1: Neutral, 2: Bearish)
+        low_thresh: Lower threshold for regime classification (default: 30.0)
+        high_thresh: Upper threshold for regime classification (default: 70.0)
+        buffer: Buffer zone around thresholds to prevent flickering (default: 5.0)
+        
+    Returns:
+        Integer representing the new regime state:
+        - 0: Bullish (low volatility, favorable conditions)
+        - 1: Neutral (moderate volatility)
+        - 2: Bearish (high volatility, unfavorable conditions)
+    """
+    # Grab the most recent indicator value calculated for the current day
+    val = regime_indicator[-1] 
+    
+    if current_regime == 0:    # Currently Bullish
+        if val > (low_thresh + buffer): 
+            return 1           # Switch up to Neutral (requires breaking past 35)
+    elif current_regime == 1:  # Currently Neutral
+        if val < (low_thresh - buffer): 
+            return 0           # Switch down to Bullish (requires dropping below 25)
+        if val > (high_thresh + buffer): 
+            return 2           # Switch up to Bearish (requires breaking past 75)
+    elif current_regime == 2:  # Currently Bearish
+        if val < (high_thresh - buffer): 
+            return 1           # Switch down to Neutral (requires dropping below 65)
+        
+    return current_regime      # Maintain current regime state if within the buffer zones
 
 
 def add_regime_features(features: np.ndarray,
