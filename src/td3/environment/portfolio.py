@@ -34,7 +34,7 @@ class PortfolioEnv(gym.Env):
 
     Action space:
         Box of shape ``(num_assets + 1,)`` in ``[0, 1]`` — target portfolio weights
-        where index 0 is cash and indices 1…N are the individual assets.  Weights
+        where index 0 is cash and indices 1…N are the individual assets. Weights
         are expected to sum to 1 but this is not enforced internally.
     """
 
@@ -248,6 +248,16 @@ class PortfolioEnv(gym.Env):
     def _step_v2(self, action):
         """Executes one time step within the environment based on the given action."""
 
+        # Check if we're at the end before processing
+        if self.current_step >= self.num_steps - 1:
+            return (
+                None,
+                0.0,
+                True,  # episode_end
+                False,
+                {},
+            )
+
         # Save the previous values, check if even needed
         self.weights.set_prev_from_curr()
         self.portfolio_value.set_prev_from_curr()
@@ -259,8 +269,8 @@ class PortfolioEnv(gym.Env):
         try:
             self.logger.debug("Next prices: %s", self._get_prices(1))
         except IndexError:
-            pass
-            # self.logger.warn("Cannot retrieve the next prices index error")
+            pass  # Expected at episode end
+
         # Calculate the current portfolio value with previous cash and shares held
         self.portfolio_value.set_curr(
             self.portfolio_cash.prev + self._get_prices().dot(self.shares.prev)
@@ -280,21 +290,16 @@ class PortfolioEnv(gym.Env):
         # Calculate how many shares per asset with new prices
         self.shares.set_curr(self.assets_prices.curr / self._get_prices())
 
-        reward = 0
-        try:
-            reward = self._calculate_reward()
-        except IndexError:
-            pass
-            # self.logger.warn("Error on reward calculation")
+        reward = self._calculate_reward()
 
-        next_state = None
         try:
             next_state = self._get_state_next()
         except IndexError:
-            pass
-            # self.logger.warn("Error on getting next state")
+            # If we can't get next state, we're at the end
+            episode_end = True
+        else:
+            episode_end = self.current_step >= self.num_steps - 1
 
-        episode_end = self.current_step >= self.num_steps - 1
         self.current_step += 1
 
         # Lookup precomputed regime instead of recalculating (O(1) instead of O(T²))
