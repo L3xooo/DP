@@ -4,6 +4,10 @@ import numpy as np
 import os
 from typing import List
 
+import sys
+import os
+sys.path.insert(0, 'src')
+
 def plot_episode_weights(
     all_weights: List[List[float]],
     tickers: List[str],
@@ -68,12 +72,12 @@ def main():
     """Main function to run portfolio simulation and analysis."""
     # Load data
     weights = pd.read_csv(
-        r"/home/teodora/Desktop/workspace/DP/portfolio_utils_results/data/weights_td3_model_run_1.csv",
+        r"/data/teodora_portfolio/test/run_2026-06-21_14-19-31/weights/weights_td3_model_run_0.pth.csv",
         parse_dates=["Date"]
     ).set_index("Date")
 
     prices = pd.read_csv(
-        r"/home/teodora/Desktop/workspace/DP/portfolio_utils_results/data/weights_td3_model_run_1_prices.csv",
+        r"/home/xsimont/DP/simulations/prices.csv",
         parse_dates=["date"]
     ).set_index("date")
 
@@ -141,7 +145,7 @@ def main():
 
     positions_df["PortfolioValue"] = portfolio_values
     positions_df["Returns"] = positions_df["PortfolioValue"].pct_change()  # z tehoto vlastne pocitame secko druhe
-    positions_df.to_csv("returns/positions_with_value.csv")
+    positions_df.to_csv("/home/xsimont/DP/simulations/returns/positions_with_value_last.csv")
 
     # Calculate statistics
     mean_return = positions_df["Returns"].mean()
@@ -176,7 +180,7 @@ def main():
     plot_episode_weights(
         all_weights,
         tickers,
-        filename="/home/teodora/Desktop/workspace/DP/portfolio_utils_results/plots/weights_plot.jpg",
+        filename="/home/xsimont/DP/simulations/portfolio_metrics/weights_plot_last.jpg",
         title="Portfolio Weights Over Time"
     )
 
@@ -204,7 +208,7 @@ def main():
     axes[1].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig("/home/teodora/Desktop/workspace/DP/portfolio_utils_results/plots/portfolio_plots.png", dpi=150, bbox_inches="tight")
+    plt.savefig("/home/xsimont/DP/simulations/plots/portfolio_plots_last.png", dpi=150, bbox_inches="tight")
     plt.show()
 
 

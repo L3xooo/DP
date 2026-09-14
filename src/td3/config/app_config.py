@@ -31,13 +31,13 @@ class AppConfig:
 
     iterations: int = 1
     number_of_episodes: int = 100
-    batch_size: int = 128
-    replay_buffer_size: int = 60000
+    batch_size: int = 512
+    replay_buffer_size: int = 60_000
     data_dir: str = "../indicators"
-    start_date: str = "2017-05-01"
-    end_date: str = "2021-05-30"
+    start_date: str = "2016-05-01"
+    end_date: str = "2020-05-30"
     initial_cash: float = 10000.0
-    hidden_size: int = 512
+    hidden_size: int = 256
     lr: float = 3e-5
     noise_init: float = 0.3
     noise_final: float = 0.08
@@ -46,13 +46,14 @@ class AppConfig:
     normalization: Optional[str] = "cross"
     lookback_window: int = 1
     ticker_config: TickerConfig = TickerConfig("10_TICKERS")
-    parquet_dir: Optional[str] = "indicators"
-    
+    parquet_dir: Optional[str] = "./indicators"
+
     # Regime awareness parameters
-    enable_regime_awareness: bool = False
+    enable_regime_awareness: bool = True
     regime_low_threshold: float = 30.0
     regime_high_threshold: float = 70.0
-    regime_volatility_window: int = 20
+    regime_volatility_window: int = 17
+    regime_norm_window: int = 280
 
     filter_out: List[str] = field(
         default_factory=lambda: [
@@ -138,7 +139,7 @@ class AppConfig:
             json.dump(d, f, indent=2)
 
     @classmethod
-    def load_from_train_config(
+    def oad_from_train_config(
             cls,
             path: str | Path,
             start_date: Optional[str] = None,

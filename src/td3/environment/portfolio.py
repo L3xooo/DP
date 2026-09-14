@@ -34,7 +34,7 @@ class PortfolioEnv(gym.Env):
 
     Action space:
         Box of shape ``(num_assets + 1,)`` in ``[0, 1]`` — target portfolio weights
-        where index 0 is cash and indices 1…N are the individual assets. Weights
+        where index 0 is cash and indices 1…N are the individual assets.  Weights
         are expected to sum to 1 but this is not enforced internally.
     """
 
@@ -217,20 +217,32 @@ class PortfolioEnv(gym.Env):
             prices = prices.squeeze(-1)
 
         # Calculate market regime indicator once for entire history
-        market_indicator = calculate_market_regime_indicator(prices)
+        market_indicator = calculate_market_regime_indicator(
+            prices,
+            window=self.app_config.regime_volatility_window,
+            norm_window=self.app_config.regime_norm_window,
+        )
 
         # Apply hysteresis-based classification in single pass (O(T))
+        # Optimized thresholds from sensitivity analysis
         current_regime = 1  # Start as Neutral
-        low_thresh = 30.0
-        high_thresh = 70.0
-        buffer = 5.0
+        low_thresh = self.app_config.regime_low_threshold
+        high_thresh = self.app_config.regime_high_threshold
+        buffer = 3.0
+        
+        # Direct transition thresholds (lower than normal to allow direct Bullish<->Bearish switches)
+        # These enable rapid regime changes without going through Neutral
+        direct_high_thresh = high_thresh + buffer - 5.0  # 70 (was 75, now more achievable)
+        direct_low_thresh = low_thresh - buffer + 5.0    # 30 (was 25, now more achievable)
 
         for t in range(len(market_indicator)):
             if t >= 20:  # Only classify when we have enough data
                 val = market_indicator[t]
 
                 if current_regime == 0:  # Currently Bullish
-                    if val > (low_thresh + buffer):
+                    if val > direct_high_thresh:
+                        current_regime = 2  # Direct switch to Bearish (faster response)
+                    elif val > (low_thresh + buffer):
                         current_regime = 1  # Switch to Neutral
                 elif current_regime == 1:  # Currently Neutral
                     if val < (low_thresh - buffer):
@@ -238,7 +250,9 @@ class PortfolioEnv(gym.Env):
                     elif val > (high_thresh + buffer):
                         current_regime = 2  # Switch to Bearish
                 elif current_regime == 2:  # Currently Bearish
-                    if val < (high_thresh - buffer):
+                    if val < direct_low_thresh:
+                        current_regime = 0  # Direct switch to Bullish (faster response)
+                    elif val < (high_thresh - buffer):
                         current_regime = 1  # Switch to Neutral
 
             regimes[t] = current_regime
@@ -270,7 +284,7 @@ class PortfolioEnv(gym.Env):
             self.logger.debug("Next prices: %s", self._get_prices(1))
         except IndexError:
             pass  # Expected at episode end
-
+        
         # Calculate the current portfolio value with previous cash and shares held
         self.portfolio_value.set_curr(
             self.portfolio_cash.prev + self._get_prices().dot(self.shares.prev)
@@ -299,7 +313,7 @@ class PortfolioEnv(gym.Env):
             episode_end = True
         else:
             episode_end = self.current_step >= self.num_steps - 1
-
+        
         self.current_step += 1
 
         # Lookup precomputed regime instead of recalculating (O(1) instead of O(T²))

@@ -8,6 +8,7 @@ Author: Peter Likavec
 """
 
 import sys
+import os
 sys.path.insert(0, 'src')
 
 from td3.config.app_config import AppConfig
@@ -21,8 +22,39 @@ from td3.utils.graph_utils import plot_episode_weights, plot_price_history, plot
 from td3.utils.logs.logger import LoggerFactory
 from td3.utils.torch_utils import count_params
 from itertools import accumulate
+from typing import List
 
 logger = LoggerFactory.create_logger(__name__)
+
+
+# def export_weights(
+#     experiment_metrics: "ExperimentMetrics",
+#     model_names: list,
+#     tickers: list,
+#     weights_dir: str,
+#     dates: List[str],
+# ) -> None:
+#     """
+#     Create a CSV file for each model containing the weights of the portfolio at each step of
+#     the episode, along with the corresponding dates.
+#
+#     Args:
+#         experiment_metrics: Metrics object containing the runs and episodes with their respective weights.
+#         model_names: List of model names corresponding to the runs in experiment_metrics.
+#         tickers: List of tickers corresponding to the weights, including "Cash" as the first entry.
+#         weights_dir: Directory where the CSV files will be saved.
+#         dates: List of dates corresponding to each step in the episode.
+#     """
+#
+#     for run, name in zip(experiment_metrics.runs, model_names):
+#         data_series = [step.weights for step in run.episodes[:-2]]
+#         episode_dates = dates[: len(data_series)]
+#         save_path = os.path.join(weights_dir, f"weights_{name}.csv")
+#         with open(save_path, "w") as f:
+#             f.write("Date," + ",".join(tickers) + "\n")
+#
+#             for date, weights in zip(episode_dates, data_series):
+#                 f.write(date + "," + ",".join(map(str, weights)) + "\n")
 
 
 def main() -> None:
@@ -49,7 +81,7 @@ def main() -> None:
         create_directory(f"{weights_dir}/run_{iteration}")
 
         env = PortfolioEnv(
-            features=data_3d_features, prices=data_3d_prices, tickers=tickers, 
+            features=data_3d_features, prices=data_3d_prices, tickers=tickers,
             app_config=app_config
         )
 
@@ -81,22 +113,24 @@ def main() -> None:
 
             while True:
                 if done:
-                    cumulative_rewards = list(accumulate(episode_metrics.rewards))
-                    plot_multi_line_chart(
-                        data_series=[cumulative_rewards],
-                        labels=["Cumulative Reward"],
-                        title=f"Cumulative Reward - Episode {episode}",
-                        image_name=f"episode_{episode}_cumulative_reward.jpg",
-                        save_dir=rewards_dir + "/run_" + str(iteration),
-                        x_label="Step",
-                        y_label="Cumulative Reward",
-                    )
-                    plot_episode_weights(
-                        episode_metrics.final_weights,
-                        app_config.ticker_config.tickers_with_cash,
-                        episode=episode,
-                        save_dir=weights_dir + "/run_" + str(iteration),
-                    )
+                    is_last_episode = episode == app_config.number_of_episodes - 1
+                    if episode % 10 == 0 or is_last_episode:
+                        cumulative_rewards = list(accumulate(episode_metrics.rewards))
+                        plot_multi_line_chart(
+                            data_series=[cumulative_rewards],
+                            labels=["Cumulative Reward"],
+                            title=f"Cumulative Reward - Episode {episode}",
+                            image_name=f"episode_{episode}_cumulative_reward.jpg",
+                            save_dir=rewards_dir + "/run_" + str(iteration),
+                            x_label="Step",
+                            y_label="Cumulative Reward",
+                        )
+                        plot_episode_weights(
+                            episode_metrics.final_weights,
+                            app_config.ticker_config.tickers_with_cash,
+                            episode=episode,
+                            save_dir=weights_dir + "/run_" + str(iteration),
+                        )
                     episode_metrics.aggregate()
                     logger.debug("Total reward: %s", episode_metrics.total_reward)
                     break
@@ -118,6 +152,17 @@ def main() -> None:
                     )
 
         td3_agent.save_model(models_dir, filename=f'td3_model_run_{iteration}.pth')
+
+        # Export portfolio weights to CSV for this iteration
+        # model_name = f'td3_model_run_{iteration}.pth'
+        # export_weights(
+        #     experiment_metrics,
+        #     [model_name],
+        #     app_config.ticker_config.tickers_with_cash,
+        #     weights_dir + "/run_" + str(iteration),
+        #     dates
+        # )
+
         logger.info(
             "Train stats | Iteration: %d | Total reward: %.6f | "
             "Portfolio value: %.2f",

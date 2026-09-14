@@ -155,6 +155,7 @@ class TD3:
 
         self.gamma = gamma
         self.tau = tau
+        self.mse_loss = nn.MSELoss()
 
     def set_episode_and_noise(self, episode_index: int):
         """Update current episode and anneal exploration noise.
@@ -301,8 +302,8 @@ class TD3:
             q1 = self.critic1(states, actions)
             q2 = self.critic2(states, actions)
 
-        critic1_loss = nn.MSELoss()(q1, target_q)
-        critic2_loss = nn.MSELoss()(q2, target_q)
+        critic1_loss = self.mse_loss(q1, target_q)
+        critic2_loss = self.mse_loss(q2, target_q)
 
         self.critic1_optimizer.zero_grad()
         critic1_loss.backward()
@@ -314,12 +315,15 @@ class TD3:
         torch.nn.utils.clip_grad_norm_(self.critic2.parameters(), self.max_grad_norm)
         self.critic2_optimizer.step()
 
-        critic1_loss_val = float(critic1_loss.detach().cpu().item())
-        critic2_loss_val = float(critic2_loss.detach().cpu().item())
-        actor_loss_val = None
+        # Gather all scalars on GPU first, then pull to CPU in one sync point
+        diagnostics = torch.stack([
+            critic1_loss.detach(),
+            critic2_loss.detach(),
+            q1.detach().mean(),
+            q2.detach().mean(),
+        ])
 
-        q1_mean = float(q1.detach().mean().cpu().item())
-        q2_mean = float(q2.detach().mean().cpu().item())
+        actor_loss_val = None
 
         if self.total_it % 3 == 0:
             actor_logits = self.actor(states)
@@ -347,6 +351,13 @@ class TD3:
             self._update_target_network(self.target_critic2, self.critic2)
 
             actor_loss_val = float(actor_loss.detach().cpu().item())
+
+        # Single CPU transfer for all 4 diagnostics (one sync instead of four)
+        diag_cpu = diagnostics.cpu()
+        critic1_loss_val = float(diag_cpu[0])
+        critic2_loss_val = float(diag_cpu[1])
+        q1_mean = float(diag_cpu[2])
+        q2_mean = float(diag_cpu[3])
 
         return StepMetrics(
             actor_loss=actor_loss_val,
