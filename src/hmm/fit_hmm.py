@@ -14,7 +14,7 @@ import pandas as pd
 from hmmlearn.hmm import GaussianHMM
 import matplotlib.pyplot as plt
 
-# ============================================================
+# ============================================================+
 # Step 2: Prepare HMM Training Data
 # ============================================================
 

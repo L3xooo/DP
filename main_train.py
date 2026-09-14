@@ -35,7 +35,7 @@ def main() -> None:
     app_config.to_json(experiment_dir)
 
     dp = DataProcessor(data_dir=app_config.data_dir, parquet_dir=app_config.parquet_dir)
-    data_3d_features, data_3d_prices, tickers, features, dates = dp.load_data(
+    data_3d_features, data_3d_prices, tickers, features, dates, hmm_regime_probs = dp.load_data(
         app_config, add_regime=app_config.enable_regime_awareness
     )
     plot_price_history(data_3d_prices, tickers, dates, save_path=plots_dir + "/price_history.png")
@@ -50,7 +50,7 @@ def main() -> None:
 
         env = PortfolioEnv(
             features=data_3d_features, prices=data_3d_prices, tickers=tickers, 
-            app_config=app_config
+            app_config=app_config, hmm_regime_probs=app_config.enable_regime_awareness
         )
 
         td3_agent = TD3(

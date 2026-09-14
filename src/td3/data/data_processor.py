@@ -16,6 +16,7 @@ import numpy as np
 from numpy import dtype, ndarray
 
 from td3.utils.regime_awareness import add_regime_features
+from triton.language import slice
 
 
 class DataProcessor:
@@ -188,8 +189,9 @@ class DataProcessor:
         )
 
         # slice out feature columns and price columns from the panel
-        df_features = df.loc[:, (slice(None), app_config.filter_in)]
-        df_prices = df.loc[:, (slice(None), ['close'])]
+        idx=pd.IndexSlice
+        df_features = df.loc[:, idx[:, app_config.filter_in]]
+        df_prices = df.loc[:, idx[:, ['close']]]
 
         # convert both to 3D arrays (T, N, F)
         data_3d_features, _, tickers, features = self.to_3d(df_features)
@@ -202,7 +204,19 @@ class DataProcessor:
         
         all_dates = df.index.get_level_values(0).unique().strftime('%Y-%m-%d').tolist()
 
-        return data_3d_features, data_3d_prices, tickers, features, all_dates
+        hmm_regime_probs = None
+        if app_config.enable_hmm_regime:
+            from hmm.regime_detector import HMMRegimeDetector
+            #build close prices DataFrame from the panel
+            df_close = df.loc[:, idx[:, 'close']]
+            #Flatten MultiIndex columns to just ticker names
+            df_close.columns = df_close.columns.get_level_values(0)
+
+            detector = HMMRegimeDetector()
+            detector.fit(df_close)
+            hmm_regime_probs = detector.get_regime_probs(df_close.index)
+
+        return data_3d_features, data_3d_prices, tickers, features, all_dates, hmm_regime_probs
 
     @staticmethod
     def to_3d(panel_df: pd.DataFrame) -> Tuple[ndarray[tuple[int, int, int], dtype[Any]], list[str], list[str], list[str]]:
@@ -233,7 +247,8 @@ class DataProcessor:
             raise ValueError("No shared features across tickers")
 
         # keep only shared features to ensure consistent shape
-        panel_df = panel_df.loc[:, (slice(None), common_features)]
+        idx=pd.IndexSlice
+        panel_df = panel_df.loc[:,idx[:, common_features]]
 
         dates = list(panel_df.index)
         T = len(dates)

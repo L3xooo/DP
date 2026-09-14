@@ -30,7 +30,7 @@ class AppConfig:
     """
 
     iterations: int = 1
-    number_of_episodes: int = 100
+    number_of_episodes: int = 2
     batch_size: int = 128
     replay_buffer_size: int = 60000
     data_dir: str = "../indicators"
@@ -49,7 +49,8 @@ class AppConfig:
     parquet_dir: Optional[str] = "indicators"
     
     # Regime awareness parameters
-    enable_regime_awareness: bool = False
+    enable_hmm_regime: bool = False
+    enable_regime_awareness: bool = True
     regime_low_threshold: float = 30.0
     regime_high_threshold: float = 70.0
     regime_volatility_window: int = 20

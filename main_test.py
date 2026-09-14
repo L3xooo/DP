@@ -87,7 +87,7 @@ def main() -> None:
         run_type=RunType.TEST
     )
 
-    data_3d_features, data_3d_prices, tickers, features, all_dates = DataProcessor(
+    data_3d_features, data_3d_prices, tickers, features, all_dates, hmm_regime_probs = DataProcessor(
         data_dir=app_config.data_dir, parquet_dir=app_config.parquet_dir
     ).load_data(app_config, add_regime=app_config.enable_regime_awareness)
     plot_price_history(data_3d_prices, tickers, all_dates, save_path=plots_dir + "/price_history.png")
@@ -99,7 +99,8 @@ def main() -> None:
     for model_path in model_paths:
         env = PortfolioEnv(
             features=data_3d_features, prices=data_3d_prices, tickers=tickers, 
-            app_config=app_config
+            app_config=app_config,
+            hmm_regime_probs=hmm_regime_probs,
         )
 
         td3_agent = TD3(

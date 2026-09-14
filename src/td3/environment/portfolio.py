@@ -44,6 +44,7 @@ class PortfolioEnv(gym.Env):
         prices: np.ndarray = None,
         tickers: list = None,
         app_config: AppConfig = None,
+        hmm_regime_probs: np.ndarray = None,
     ):
         super(PortfolioEnv, self).__init__()
 
@@ -82,10 +83,17 @@ class PortfolioEnv(gym.Env):
         self.action_space = spaces.Box(
             low=0.0, high=1.0, shape=(self.num_assets + 1,), dtype=np.float32
         )
+
+        # Store HMM regime probabilities
+        self.hmm_regime_probs = hmm_regime_probs
+
+        # Update observation space to include +1 for HMM probability
+        hmm_extra = 1 if self.hmm_regime_probs is not None else 0
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(self.num_assets * self.feature_dim * self.lookback_window + self.num_assets,),
+            shape=(self.num_assets * self.feature_dim * self.lookback_window
+                   + self.num_assets + hmm_extra,),
             dtype=np.float32,
         )
         # self.logger.info("State shape: %s", self.features.shape)
@@ -124,14 +132,25 @@ class PortfolioEnv(gym.Env):
         """Returns the current state as a flattened array of features."""
         # Broadcast current regime across all assets and append to features
         regime_broadcast = np.full(self.num_assets, self.current_regime, dtype=np.float32)
-        return np.concatenate([self._get_features_current().flatten(), regime_broadcast], axis=0).astype(np.float32)
+        state = np.concatenate([self._get_features_current().flatten(), regime_broadcast])
+
+        if self.hmm_regime_probs is not None:
+            hmm_probs = np.array([self.hmm_regime_probs[self.current_step]], dtype=np.float32)
+            state = np.concatenate([state, hmm_probs])
+        return state
 
     def _get_state_next(self):
         # self.logger.info("getting next state")
         """Returns the next state as a flattened array of features."""
         # Broadcast current regime across all assets and append to features
         regime_broadcast = np.full(self.num_assets, self.current_regime, dtype=np.float32)
-        return np.concatenate([self._get_features_next().flatten(), regime_broadcast], axis=0).astype(np.float32)
+        state = np.concatenate([self._get_features_next().flatten(), regime_broadcast], axis=0)
+
+        if self.hmm_regime_probs is not None:
+            next_step = self.current_step + 1
+            hmm_probs = np.array([self.hmm_regime_probs[next_step]], dtype=np.float32)
+            state = np.concatenate([state, hmm_probs])
+        return state.astype(np.float32)
 
     def _calculate_portfolio_value(self, prices: np.ndarray = None) -> float:
         """Calculates the current portfolio value based on cash and shares held."""
