@@ -29,9 +29,10 @@ class AppConfig:
     and the target ticker universe.
     """
 
-    iterations: int = 1
-    number_of_episodes: int = 2
-    batch_size: int = 128
+    iterations: int = 5
+    number_of_episodes: int = 100
+    batch_size: int = 512
+    update_every: int = 4
     replay_buffer_size: int = 60000
     data_dir: str = "../indicators"
     start_date: str = "2017-05-01"
@@ -50,7 +51,7 @@ class AppConfig:
     
     # Regime awareness parameters
     enable_hmm_regime: bool = False
-    enable_regime_awareness: bool = True
+    enable_regime_awareness: bool = False
     regime_low_threshold: float = 30.0
     regime_high_threshold: float = 70.0
     regime_volatility_window: int = 20
