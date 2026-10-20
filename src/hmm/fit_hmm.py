@@ -1,7 +1,7 @@
 """
 HMM Regime Detection Prototype — Step 2 + Step 3
 
-Loads close prices for 10 tickers, computes equally-weighted average
+Loads daily close prices for 10 tickers, computes equally-weighted average
 daily log-returns, fits a 2-state Gaussian HMM, and validates the results.
 
 Based on: Bauman et al., "Deep Reinforcement Learning for Goal-Based
@@ -24,10 +24,10 @@ TICKERS = ["AAPL", "MSFT", "AMZN", "GOOGL", "META",
 TRAIN_START = "2016-05-01"
 TRAIN_END = "2020-05-30"
 
-# --- Load close prices for all tickers ---
+# --- Load daily close prices for all tickers ---
 close_frames = []
 for ticker in TICKERS:
-    path = os.path.join(DATA_DIR, ticker, "normalized.parquet")
+    path = os.path.join(DATA_DIR, ticker, "normalized.csv")
     df = pd.read_parquet(path)
     df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values("date").set_index("date")
@@ -39,16 +39,9 @@ close_prices = pd.concat(close_frames, axis=1, join="inner")
 print(f"Close prices shape: {close_prices.shape}")
 print(f"Date range: {close_prices.index[0]} to {close_prices.index[-1]}")
 
-# --- Compute 30-min log-returns ---
-log_returns_30min = np.log(close_prices / close_prices.shift(1))
-log_returns_30min = log_returns_30min.dropna()
-
-# --- Aggregate to daily returns for HMM fitting ---
-# Sum of log-returns within a day = log of cumulative daily return.
-# The HMM needs daily-scale data to detect multi-day regime shifts,
-# not bar-level volatility spikes (see paper: monthly frequency).
-daily_returns = log_returns_30min.resample("D").sum()
-daily_returns = daily_returns.loc[(daily_returns != 0).any(axis=1)]  # drop non-trading days
+# --- Compute daily log-returns ---
+daily_returns = np.log(close_prices / close_prices.shift(1))
+daily_returns = daily_returns.dropna()
 
 # --- Equally-weighted average across tickers ---
 avg_daily_returns = daily_returns.mean(axis=1)

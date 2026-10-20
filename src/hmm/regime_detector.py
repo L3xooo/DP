@@ -2,7 +2,7 @@
 HMM-based regime detector.
 
 Fits a 2-state Gaussian HMM on daily returns and provides
-regime probability estimates for 30-min bars.
+regime probability estimates for each trading day.
 """
 
 import numpy as np
@@ -25,18 +25,16 @@ class HMMRegimeDetector:
 
     def fit(self, close_prices: pd.DataFrame):
         """
-        Fit the HMM on daily log-returns derived from 30-min close prices.
+        Fit the HMM on daily log-returns.
 
         Args:
-            close_prices: DataFrame of shape (T_30min, N_tickers) with raw close prices,
+            close_prices: DataFrame of shape (T_days, N_tickers) with daily close prices,
                           indexed by datetime.
         """
-        # 30-min log-returns → aggregate to daily
+        # Compute daily log-returns directly
         log_returns = np.log(close_prices / close_prices.shift(1)).dropna()
-        daily_returns = log_returns.resample("D").sum()
-        daily_returns = daily_returns.loc[(daily_returns != 0).any(axis=1)]
 
-        avg_daily = daily_returns.mean(axis=1)
+        avg_daily = log_returns.mean(axis=1)
         self.daily_index = avg_daily.index
         returns = avg_daily.values.reshape(-1, 1)
 
@@ -56,16 +54,15 @@ class HMMRegimeDetector:
         self.daily_prob_shifted = self.daily_prob_series.shift(1)
         self.daily_prob_shifted.iloc[0] = 1.0
 
-    def get_regime_probs(self, bar_index: pd.DatetimeIndex) -> np.ndarray:
+    def get_regime_probs(self, day_index: pd.DatetimeIndex) -> np.ndarray:
         """
-        Broadcast daily regime probabilities to 30-min bar timestamps.
+        Return regime probabilities aligned to the given daily index.
 
         Args:
-            bar_index: DatetimeIndex of the 30-min bars.
+            day_index: DatetimeIndex of trading days.
 
         Returns:
-            Array of shape (T_30min,) with P(bull) for each bar.
+            Array of shape (T_days,) with P(bull) for each day.
         """
-        bar_days = bar_index.normalize()
-        probs = bar_days.map(self.daily_prob_shifted).values.astype(np.float32)
+        probs = day_index.map(self.daily_prob_shifted).values.astype(np.float32)
         return np.nan_to_num(probs, nan=1.0)

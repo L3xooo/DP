@@ -6,7 +6,7 @@ sys.path.insert(0, 'src')
 
 # --- Configuration (matches your app_config.py) ---
 
-DATA_DIR = "indicators"                # or "indicators" for parquet
+DATA_DIR = "indicators_parquet"                # or "indicators_parquet" for parquet
 TICKERS = ["AAPL", "MSFT", "AMZN", "GOOGL", "META",
            "TSLA", "NVDA", "JPM", "JNJ", "XOM"]
 TRAIN_START = "2016-05-01"

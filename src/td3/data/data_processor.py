@@ -199,7 +199,10 @@ class DataProcessor:
         
         # Add regime awareness features if enabled
         if add_regime:
-            data_3d_features = add_regime_features(data_3d_features, data_3d_prices.squeeze(), window=20)
+            data_3d_features = add_regime_features(
+                data_3d_features, data_3d_prices.squeeze(), window=20,
+                bars_per_day=app_config.bars_per_day,
+            )
             features = features + ['realized_volatility', 'market_regime', 'regime_classification']
         
         all_dates = df.index.get_level_values(0).unique().strftime('%Y-%m-%d').tolist()
