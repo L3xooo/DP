@@ -25,7 +25,7 @@ from td3.utils.graph_utils import plot_price_history
 from td3.utils.logs.logger import LoggerFactory
 from td3.utils.torch_utils import count_params
 
-EXPERIMENT_DIR = "/data/teodora_portfolio/train/run_2026-06-15_20-35-41_False/"
+EXPERIMENT_DIR = "/data/teodora_portfolio/train/regime_only_2026-10-15_10-12-00/"
 logger = LoggerFactory.create_logger(__name__)
 
 def get_model_paths() -> Tuple[List[str], List[str]]:
@@ -88,7 +88,7 @@ def main() -> None:
     )
 
     data_3d_features, data_3d_prices, tickers, features, all_dates, hmm_regime_probs = DataProcessor(
-        data_dir=app_config.data_dir, parquet_dir=app_config.parquet_dir
+        data_dir=app_config.data_dir, parquet_dir=None
     ).load_data(app_config, add_regime=app_config.enable_regime_awareness)
     plot_price_history(data_3d_prices, tickers, all_dates, save_path=plots_dir + "/price_history.png")
     steps, _, _= data_3d_features.shape

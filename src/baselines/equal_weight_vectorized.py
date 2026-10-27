@@ -15,6 +15,7 @@ Author: Teodora Simon
 
 import sys
 import os
+import json
 
 # Resolve src/ relative to this file so the script works from any CWD
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -72,7 +73,7 @@ def run_equal_weight_baseline(
     w_star = 1.0 / N
 
     # ── Step 1-4: fully vectorized ───────────────────────────────────
-    R = P[1:] / P[:-1]                              # (T-1, N)
+    R = P[1:] / P[:-1]                              # daily price return ratios (T-1, N)
     r_ew = R.mean(axis=1)                            # (T-1,)
     R_sum = R.sum(axis=1, keepdims=True)             # (T-1, 1)
     W_drift = R / R_sum                              # (T-1, N)
@@ -86,8 +87,8 @@ def run_equal_weight_baseline(
 
     # ── Derived series for reporting ─────────────────────────────────
     V_pre = np.empty(T - 1)
-    V_pre[0] = V[0] * r_ew[0]
-    V_pre[1:] = V[1:-1] * r_ew[1:]
+    V_pre[0] = V[0] * r_ew[0]      # day 0: start value * gross return
+    V_pre[1:] = V[1:-1] * r_ew[1:] # day t: yesterday's net value * today's gross return
     costs = c * tau * V_pre
 
     log_ret = np.log(net_factors)
@@ -98,17 +99,15 @@ def run_equal_weight_baseline(
     )
 
 
-# ═════════════════════════════════════════════════════════════════════
-#  Main
-# ═════════════════════════════════════════════════════════════════════
-
 def main() -> None:
-    # ── Configuration ────────────────────────────────────────────────
-    TRANSACTION_COST = 0.001  # must match PortfolioEnv.transaction_coefficient
+
+    TRANSACTION_COST = 0.001  
 
     app_config = AppConfig(
-        start_date="2021-06-01",
-        end_date="2024-12-30",
+        enable_regime_awareness=False,
+        enable_hmm_regime=True,
+        start_date="2017-05-01",
+        end_date="2021-05-30",
     )
 
     # ── Load data ────────────────────────────────────────────────────
@@ -230,6 +229,16 @@ def main() -> None:
 
     print_metrics(metrics_gross, label="1/N EQUAL-WEIGHT BASELINE — GROSS (c=0)")
     print_metrics(metrics_net, label=f"1/N EQUAL-WEIGHT BASELINE — NET (c={TRANSACTION_COST})")
+
+    # ── Export metrics to JSON ───────────────────────────────────────
+    metrics_json = {
+        "gross": {k: float(v) for k, v in metrics_gross.items()},
+        "net":   {k: float(v) for k, v in metrics_net.items()},
+    }
+    json_path = os.path.join(experiment_dir, "ew_metrics.json")
+    with open(json_path, "w") as f:
+        json.dump(metrics_json, f, indent=2)
+    logger.info("Metrics JSON: %s", json_path)
 
     logger.info("Weights CSV : %s", csv_path)
     logger.info("Plots dir   : %s", plots_dir)

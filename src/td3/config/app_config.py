@@ -34,7 +34,7 @@ class AppConfig:
     batch_size: int = 512
     update_every: int = 4
     replay_buffer_size: int = 60000
-    data_dir: str = "../indicators"
+    data_dir: str = "/home/xsimont/DP/indicators/indicators"
     start_date: str = "2017-05-01"
     end_date: str = "2021-05-30"
     initial_cash: float = 10000.0
@@ -47,9 +47,10 @@ class AppConfig:
     normalization: Optional[str] = "cross"
     lookback_window: int = 1
     ticker_config: TickerConfig = TickerConfig("10_TICKERS")
-    parquet_dir: Optional[str] = "indicators"
+    parquet_dir: Optional[str] = "/indicators"
     
     # Regime awareness parameters
+    bars_per_day: int = 1
     enable_hmm_regime: bool = False
     enable_regime_awareness: bool = False
     regime_low_threshold: float = 30.0
